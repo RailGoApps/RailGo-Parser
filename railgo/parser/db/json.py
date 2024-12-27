@@ -1,0 +1,2 @@
+class JsonExporter(object):
+    pass
