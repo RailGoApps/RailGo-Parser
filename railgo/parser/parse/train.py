@@ -1,8 +1,8 @@
 '''客运列车核心抓取'''
 from railgo.config import *
 from railgo.parser.models.train import TrainModel
-from railgo.parser.utils.appclient import *
-from railgo.parser.utils.webclient import *
+from railgo.parser.utils.client_app import *
+from railgo.parser.utils.client_web import *
 from railgo.parser.parse.station import *
 from railgo.parser.utils.datafixer import *
 import requests
@@ -14,22 +14,17 @@ import json
 def getTrainList():
     '''获取全部车次列表 生成器'''
     ts = time.time()
-    for td in range(7):  # 前后7天
-        for key in TRAIN_KIND_KEYWORDS:
-            for tn in range(1, 100):
-                req = get(
-                    f"https://search.12306.cn/search/v1/train/search?keyword={key+str(tn)}&date={(datetime.datetime.now()+datetime.timedelta(days=td)).strftime('%Y%m%d')}")
-                jr = req.json()
-                for car in jr["data"]:
-                    if car["train_no"] in TRAIN_CODE_UNIQUE_LIST:
-                        continue
-                    TRAIN_CODE_UNIQUE_LIST.append(car["train_no"])
-                    inst = TrainModel()
-                    inst.number = car["station_train_code"]
-                    inst.code = car["train_no"]
-                    yield inst
-                    LOGGER.debug(f"车次列表提交 {car['station_train_code']}")
-                time.sleep(0.1)
+    for key in TRAIN_KIND_KEYWORDS:
+        req = get(
+            f"https://mobile.12306.cn/weixin/wxcore/queryTrain?ticket_no={key}&depart_date={datetime.datetime.now().strftime('%Y%m%d')}")
+        jr = req.json()
+        for car in jr["data"]:
+            inst = TrainModel()
+            inst.number = car["ticket_no"]
+            inst.code = car["train_code"]
+            yield inst
+            LOGGER.debug(f"车次列表提交 {car['ticket_no']}")
+        time.sleep(1)
 
 
 def getTrainMap(inst):
@@ -39,6 +34,11 @@ def getTrainMap(inst):
         "trainNo": inst.code
     })
     raw = req.json()
+    if raw["data"] == {}:
+        # 这辆车没有地图路径
+        inst.route = []
+        return inst
+
     res = []
     for pk in raw["data"].keys():
         res += raw["data"][pk]["line"]
@@ -51,7 +51,7 @@ def getTrainMain(inst):
     '''列车时刻表，担当段和车型'''
     if len(inst.rundays) == 0:
         # 三折叠，怎么折，都停运
-        return None
+        raise LookupError
 
     req = post(
         "https://mobile.12306.cn/wxxcx/wechat/main/travelServiceQrcodeTrainInfo", data={
@@ -60,11 +60,11 @@ def getTrainMain(inst):
         })
     crj = req.json()
 
-    if crj["data"]=={}:
+    if crj["data"] == {}:
         # 只有在WXXCX查不到信息时再跳转APP版查询
         # 减少加解密开支和被炸可能
         return getTrainMainApp(inst)
-    elif len(crj["data"]["trainDetail"])==0:
+    elif len(crj["data"]["trainDetail"]) == 0:
         return getTrainMainApp(inst)
     else:
         try:
@@ -73,7 +73,7 @@ def getTrainMain(inst):
             inst.runner = crj["data"]["trainDetail"]["stopTime"][0]["jiaolu_corporation_code"]
             inst.carowner = crj["data"]["trainDetail"]["stopTime"][0]["jiaolu_dept_train"]
             inst.car = crj["data"]["trainDetail"]["stopTime"][0]["jiaolu_train_style"]
-            inst.bureau = crj["data"]["trainDetail"]["stopTime"][0]["bureau_code"]
+            inst.bureau = BUREAU_CODE[crj["data"]["trainDetail"]["stopTime"][0]["bureau_code"]]
             if "trainsetTypeInfo" in crj["data"]["trainDetail"].keys():
                 inst.car = crj["data"]["trainDetail"]["trainsetTypeInfo"]["trainsetTypeName"]
 
@@ -86,9 +86,13 @@ def getTrainMain(inst):
                     "depart": x["startTime"][:2]+":"+x["startTime"][2:],
                     "station": x["stationName"]
                 })
-                updateStationBelongInfo(
-                    x["stationName"], x["station_corporation_code"])
-        except:
+                try:
+                    updateStationBelongInfo(
+                        x["stationName"], BUREAU_CODE[x["station_corporation_code"].split("#")[0]], x["station_corporation_code"].split("#")[1])
+                except:
+                    # 暂时忽略无信息的车站段
+                    pass
+        except Exception as e:
             return getTrainMainApp(inst)
 
     LOGGER.debug(f"车次主信息 {inst.number}: 完成")
@@ -99,25 +103,25 @@ def getTrainMainApp(inst):
     '''MpaaS API: getTrainMain备份平替'''
     if len(inst.rundays) == 0:
         # 三折叠，怎么折，都停运
-        return None
+        raise LookupError
 
     r = postM("trainTimeTable.queryTrainAllInfo",
-                           {
-                               "fromStation": "",
-                               "toStation": "",
+              {
+                  "fromStation": "",
+                  "toStation": "",
                                "trainCode": inst.number,
                                "trainType": "",
                                "trainDate": inst.rundays[0]
-                           }
-                           )
-    crj = r["trainData"]
+              }
+              )
+    crj = json.loads(r["trainData"])
 
-    #inst.numberFull = crj["trainDetail"]["stationTrainCodeAll"]
-    #inst.code = crj["trainNo"]
+    # inst.numberFull = crj["trainDetail"]["stationTrainCodeAll"]
+    # inst.code = crj["trainNo"]
     inst.runner = crj["stopTime"][0]["jiaolu_corporation_code"]
     inst.carowner = crj["stopTime"][0]["jiaolu_dept_train"]
     inst.car = crj["stopTime"][0]["jiaolu_train_style"]
-    inst.bureau = crj["stopTime"][0]["bureau_code"]
+    inst.bureau = BUREAU_CODE[crj["stopTime"][0]["bureau_code"]]
     if "trainsetTypeInfo" in crj.keys():
         inst.car = crj["trainsetTypeInfo"]["trainsetTypeName"]
     inst.timetable = []
@@ -134,7 +138,7 @@ def getTrainMainApp(inst):
         tctemp.append(x["dispTrainCode"])
         updateStationBelongInfo(
             x["stationName"], x["station_corporation_code"])
-    
+
     inst.numberFull = summary_train_codes(set(tctemp))
     LOGGER.debug(f"车次主信息 {inst.number}: 完成")
     return inst
@@ -143,16 +147,20 @@ def getTrainMainApp(inst):
 def getTrainRundays(inst):
     '''MpaaS API: 获取未来列车运行计划'''
     j = postM("trainTimeTable.queryTrainDiagram",
-                           {
-                               "queryDate": datetime.date.today().strftime("%Y%m%d"),
-                               "trainCode": inst.number
-                           })
+              {
+                  "queryDate": datetime.date.today().strftime("%Y%m%d"),
+                  "trainCode": inst.number
+              })
+
     rundays = []
+    inst.rundays = []
     if "running_list" not in j:
-        # 备用模式下不存在车次
-        return None
+        # 不存在车次
+        raise LookupError
     for x in j["running_list"]:
         if x["flag"] == "1" and datetime.datetime.strptime(x["date"], "%Y%m%d") >= datetime.datetime.now():
+            if len(rundays) == 0 and (datetime.datetime.strptime(x["date"], "%Y%m%d") - datetime.datetime.now()).days > 14:
+                raise LookupError
             rundays.append(x["date"])
     inst.rundays = rundays
     # print(j)
@@ -165,6 +173,11 @@ def getTrainKind(inst):
     r = get(
         f"https://mobile.12306.cn/weixin/wxcore/queryByTrainNo?train_no={inst.code}")
     d = r.json()
+
+    if len(d["data"]["data"])==0:
+        # 图纸车
+        raise LookupError
+
     if d["data"]["data"][0]["train_class_name"] in ["高速", "动车"]:
         if ttl[0]["code"].startswith("S"):
             inst.type = "市域"
@@ -172,7 +185,33 @@ def getTrainKind(inst):
             inst.type = d["data"]["data"][0]["train_class_name"]
     else:
         if d["data"]["data"][0]["service_type"] == "0":
+            # 非空
             inst.type = d["data"]["data"][0]["train_class_name"]
         else:
             inst.type = "新空调"+d["data"]["data"][0]["train_class_name"]
+    return inst
+
+
+def getTrainDistanceCRGT(inst):
+    '''国铁吉讯：获取列车运行里程'''
+    r = post("https://tripapi.ccrgt.com/crgt/trip-server-app/wx/train/getTrainInfoNode", json={
+        "params": {"trainNumber": inst.number, "date": datetime.datetime.strptime(inst.rundays[0], "%Y%m%d").strftime("%Y-%m-%d")},
+        "isSign": 0,
+        "token": "",
+        "cguid": "",
+        "sign": ""
+    })
+    d = r.json()
+    ds = d["data"]["trainScheduleList"]
+    if d["code"] != 0:
+        return inst
+
+    for x in range(len(inst.timetable)):
+        i = inst.timetable[x]
+        if x == 0:
+            i["distance"] = ds[x]["miles"]
+        else:
+            i["distance"] = ds[x]["miles"]+inst.timetable[x-1]["distance"]
+        inst.timetable[x] = i
+
     return inst

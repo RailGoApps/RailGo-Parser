@@ -1,11 +1,12 @@
 from celery import Celery
+from railgo.parser.db.json import JsonExporter
 import logging
 
 # 枚举车次列表
 TRAIN_KIND_KEYWORDS = [
-    "", "K", "T", "Z", "G", "D", "C", "Y", "L", "S"  # 无冠
+    "K", "T", "Z", "G", "D", "C", "Y", "L", "S",
+    "1", "2", "3", "4", "5", "6", "7", "8"  # 无冠
 ]
-TRAIN_CODE_UNIQUE_LIST = []
 
 # 静态数据
 BUREAU_CODE = {
@@ -28,8 +29,30 @@ BUREAU_CODE = {
     "J":"兰州局",
     "R":"乌鲁木齐局",
     "O":"青藏铁路公司",
-    "I":"口岸",
-    "-":"中老铁路公司"
+    "I":"边境口岸",
+    "-":"国际联运"
+}
+
+BUREAU_SGCODE = {
+    "哈":"哈尔滨局",
+    "沈":"沈阳局",
+    "京":"北京局",
+    "太":"太原局",
+    "呼":"呼和浩特局",
+    "郑":"郑州局",
+    "武":"武汉局",
+    "西":"西安局",
+    "济":"济南局",
+    "上":"上海局",
+    "南":"南昌局",
+    "广":"广铁集团",
+    "宁":"南宁局",
+    "成":"成都局",
+    "昆":"昆明局",
+    "兰":"兰州局",
+    "乌":"乌鲁木齐局",
+    "青":"青藏铁路公司",
+    "口":"边境口岸"
 }
 
 BUREAU_SIMPLE_CODE = {
@@ -53,11 +76,13 @@ BUREAU_SIMPLE_CODE = {
     "R":"乌局",
     "O":"青藏",
     "I":"口岸",
-    "-":"中老"
+    "-":"国际"
 }
 
+EXPORTER = JsonExporter("./export")
+
 # 车站信息列表
-STATION_KYLIST_CACHE = [] # 客运站缓存
+STATION_95306_CACHE = [] # 客运站缓存
 STATION_XLS_EXCEPT = ["花所","八所"] # 特判
 
 # 队列
@@ -70,13 +95,17 @@ PIPE_TRAIN_PROCESSORS = [
     "getTrainRundays",
     "getTrainMain",
     "getTrainMap",
-    "getTrainKind"
+    "getTrainKind",
+    "getTrainDistanceCRGT"
 ]
 PIPE_STATION_PROCESSORS = [
-    "getKMLineInfo"
+    #"getKMLineInfo"
 ]
 PIPE_TRAIN_EXPORTERS = [
-    "lambda i:print(i.toJson())"
+    "EXPORTER.exportTrainInfo"
+]
+PIPE_STATION_EXPORTERS = [
+    "EXPORTER.exportStationInfo"
 ]
 
 # MpaaS通讯数据

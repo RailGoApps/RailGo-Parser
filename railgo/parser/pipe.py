@@ -12,10 +12,9 @@ def train(inst):
         LOGGER.debug(f"{inst.number} 执行抓取 {x}")
         try:
             inst = eval(x)(inst)
-            if inst == None:
-                # 备用模式
-                LOGGER.debug(f"车次信息缺失，舍弃")
-                return
+        except LookupError as e:
+            LOGGER.debug(f"车次信息缺失或未在目前开行范围内，舍弃")
+            return
         except Exception as e:
             # 防御不同步
             LOGGER.exception(e)
@@ -30,20 +29,23 @@ def train(inst):
             LOGGER.critical(f"车次 {inst.number} 存储错误")
 
 @PIPE_CELERY.task
-def station(inst, kycache):
-    LOGGER.info(f"{inst.name} 站接收")
+def station(inst):
+    LOGGER.info(f"{inst.name}站接收")
 
     for x in PIPE_STATION_PROCESSORS:
         LOGGER.debug(f"{inst.name} 执行抓取 {x}")
         try:
             inst = eval(x)(inst)
+        except LookupError:
+            LOGGER.debug(f"车站信息缺失，舍弃")
+            return
         except Exception as e:
             # 防御不同步
             LOGGER.exception(e)
             LOGGER.critical(f"车站 {inst.name} 抓取有误")
             return
     
-    for x in PIPE_TRAIN_EXPORTERS:
+    for x in PIPE_STATION_EXPORTERS:
         try:
             eval(x)(inst)
         except Exception as e:
@@ -59,17 +61,20 @@ def init_train():
 
 def init_stations():
     try:
-        STATION_KYLIST_CACHE = getKYFWList()
-        for x in getKMList():
-            station(x, STATION_KYLIST_CACHE)
+        for x in stationTogether():
+            station(x)
     except Exception as e:
         LOGGER.exception(e)
 
 
 def launchMainPipe():
     ts = time.time()
+    init_stations()
+    LOGGER.info("车站信息爬取完成")
     init_train()
     LOGGER.info("车次信息爬取完成")
+    #init_jiaolu()
+    #LOGGER.info("交路信息爬取完成")
     time.sleep(1)
     LOGGER.info(f"本批耗时：{time.time()-ts}s")
     LOGGER.info("单批爬取完毕，结束本批运行")
