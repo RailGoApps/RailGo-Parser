@@ -58,7 +58,7 @@ def postM(api, form):
             "x-mgs-encryption": "1",
             "x-Content-Encoding": "mgss",
             "Content-Type": "application/json",
-        })
+        }, verify = False)
     if r.content == b'':
         raise ConnectionError(
             "mPaaS Request Failed: "+r.headers["Result-Status"]+" "+urllib.parse.unquote(r.headers["Memo"]))

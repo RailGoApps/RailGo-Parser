@@ -15,6 +15,29 @@ def summary_train_codes(cs):
     return cs[0][0]+"/".join(x[1:] for x in cs)
 
 
+def searlize_simple_train_codes(cs):
+    '''补全复车次 G1201/2 -> G1201/1202'''
+    base = cs.split("/")[0]
+    l = {base,}
+    for x in cs.split("/")[1:]:
+        ab = list(base)
+        if len(x) == 1:
+            ab[-1] = x
+        elif len(x) == 2:
+            ab[-1] = x[1]
+            ab[-2] = x[0]
+        elif len(x) == 3:
+            ab[-1] = x[2]
+            ab[-2] = x[1]
+            ab[-3] = x[0]
+        elif len(x) == 4:
+            ab[-1] = x[3]
+            ab[-2] = x[2]
+            ab[-3] = x[1]
+            ab[-4] = x[0]
+        l.add("".join(ab))
+
+
 def haversine(coords):
     '''计算经纬度集合距离'''
     def atob(lat1, lon1, lat2, lon2):

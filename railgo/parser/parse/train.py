@@ -163,7 +163,6 @@ def getTrainRundays(inst):
                 raise LookupError
             rundays.append(x["date"])
     inst.rundays = rundays
-    # print(j)
     LOGGER.debug(f"车次开行计划 {inst.number}: 完成")
     return inst
 
@@ -179,7 +178,7 @@ def getTrainKind(inst):
         raise LookupError
 
     if d["data"]["data"][0]["train_class_name"] in ["高速", "动车"]:
-        if ttl[0]["code"].startswith("S"):
+        if d["data"]["data"][0]["code"].startswith("S"):
             inst.type = "市域"
         else:
             inst.type = d["data"]["data"][0]["train_class_name"]
@@ -215,3 +214,66 @@ def getTrainDistanceCRGT(inst):
         inst.timetable[x] = i
 
     return inst
+
+def getJiaolu(inst):
+    def _jiaolu(inst, station):
+        if inst.number in JIAOLU_SYNC:
+            # 前序车次已同步
+            LOGGER.info(f"{inst.number} 交路命中缓存")
+            inst.diagram = JIAOLU_SYNC[inst.number]
+            del JIAOLU_SYNC[inst.number]
+            return inst
+        
+        station_code = EXPORTER.getStation(station)["tgcode"]
+        r = post(
+            f"https://mobile.12306.cn/wxxcx/wechat/bigScreen/queryTrainByStation?train_start_date={inst.rundays[0]}&train_station_code={station_code}")
+        if not r.json()["status"]:
+            # 小部分车站无法获得数据，应当按车次顺延到下一站
+            LOGGER.info(f"交路车站 {station_code} 遭到黑洞，顺延后续车站")
+            raise KeyError
+        LOGGER.info(f"交路车站 {station_code} 获得成功")
+
+        for x in r.json()["data"]:
+            if x["jiaolu_train"] != "":
+                # 有交路
+                jl = x["jiaolu_train"].split("#")
+                je = []
+                if inst.number in x["jiaolu_train"]:
+                    for i in jl:
+                        if len(i) == 0:
+                            continue
+                        s = i.split("|")
+                        je.append({
+                            "train_num": s[0].split("/")[0],
+                            "from": [s[1], s[2]],
+                            "to": [s[3], s[4]]
+                        })
+                    inst.diagram = je
+                    for s in je:
+                        if s["train_num"] != inst.number:
+                            if EXPORTER.getTrain(s["train_num"]):
+                                t = EXPORTER.getTrain(s["train_num"])
+                                if t["diagram"] == []:
+                                    t["diagram"] = je
+                                LOGGER.info(f"录入 {t['number']} 交路")
+                                EXPORTER.exportTrainInfo(t)
+                            else:
+                                LOGGER.info(f"缓存 {s['train_num']} 交路")
+                                JIAOLU_SYNC[s["train_num"]] = je
+                    LOGGER.info(f"录入 {inst.number} 交路")
+                    return inst
+
+    for x in inst.timetable:
+        try:
+            _inst = _jiaolu(inst,x["station"])
+            assert _inst.diagram != []
+            break
+        except:
+            continue
+    
+    if _inst == None:
+        _inst = inst
+    
+    if _inst.diagram == []:
+        LOGGER.debug(f"{inst.number} 无交路")
+    return _inst

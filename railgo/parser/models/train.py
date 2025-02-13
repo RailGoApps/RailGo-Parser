@@ -10,10 +10,12 @@ class TrainModel(object):
     carowner = None
     car = None
 
-    scheule = None
+    diagram = []
     timetable = None
     rundays = None
     route = None
+
+    isTemp = False
 
     def toJson(self):
         return {
@@ -22,13 +24,14 @@ class TrainModel(object):
             "numberFull": self.numberFull,
             "bureau": self.bureau,
             "type": self.type,
-            "scheule": self.scheule,
+            "diagram": self.diagram,
             "rundays": self.rundays,
             "route": self.route,
             "runner": self.runner,
             "carowner": self.carowner,
             "car": self.car,
-            "timetable": self.timetable
+            "timetable": self.timetable,
+            "isTemp": self.isTemp
         }
 
     def __hash__(self):

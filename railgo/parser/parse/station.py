@@ -43,16 +43,16 @@ def getHYFWList():
     for x in req.json()["data"]:
         i = StationModel()
         i.type = 2
-        i.name = x["czmc"].replace("境", "").replace("(", "").replace(")", "")
+        i.name = x["czmc"]
         i.pycode = x["czpym"]
         i.tgcode = x["czdbm"]
         i.tmism = x["cztmis"]
-        if "境" in x["czmc"]:
-            i.bureau = "边境口岸"
-        else:
-            i.bureau = BUREAU_SGCODE[x["ljjc"]]
+        #if "境" in x["czmc"]:
+        #    i.bureau = "边境口岸"
+        #else:
+        #    i.bureau = BUREAU_SGCODE[x["ljjc"]]
+        i.bureau = BUREAU_SGCODE[x["ljjc"]]
         yield i
-        STATION_95306_CACHE.append(i.tgcode)
 
 
 def getKMLineInfo(inst, kycache):
@@ -80,19 +80,18 @@ def getKMLineInfo(inst, kycache):
 
 def updateStationBelongInfo(station, bureau, belong):
     '''从列车时刻表更新车站所属路局及车务段'''
-    return
     s = EXPORTER.getStation(station)
     s["belong"] = belong
     s["bureau"] = bureau
-    EXPORTER.updateStationInfo(s, station)
+    EXPORTER.exportStationInfo(s, station)
 
 
 def stationTogether():
     yield from getHYFWList()
     for x in getKYFWList():
-        if not x.tgcode in STATION_95306_CACHE:
-            yield x
-        else:
+        try:
             i = EXPORTER.getStation(x.name)
-            i["type"] = i["type"] + 1
-            EXPORTER.updateStationInfo(i, x.name)
+            i["type"] += 1
+            EXPORTER.exportStationInfo(i)
+        except:
+            yield x
