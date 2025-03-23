@@ -66,12 +66,22 @@ def init_stations():
     except Exception as e:
         LOGGER.exception(e)
 
+def init_jiaolu():
+    try:
+        for x in EXPORTER.trainInfoList():
+            if x["diagram"]==[]:
+                afterFixJiaolu(x)
+                EXPORTER.exportTrainInfo(x)
+    except Exception as e:
+        LOGGER.exception(e)
+
 
 def launchMainPipe():
     ts = time.time()
     init_stations()
     LOGGER.info("车站信息爬取完成")
     init_train()
+    init_jiaolu()
     LOGGER.info("车次信息爬取完成")
     EXPORTER.exportToJson(EXPORTER_MONGO_OUTPUT)
     EXPORTER.close()

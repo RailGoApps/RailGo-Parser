@@ -251,21 +251,14 @@ def getJiaolu(inst):
                     inst.diagram = je
                     for s in je:
                         if s["train_num"] != inst.number:
-                            if EXPORTER.getTrain(s["train_num"]):
-                                t = EXPORTER.getTrain(s["train_num"])
-                                if t["diagram"] == []:
-                                    t["diagram"] = je
-                                LOGGER.info(f"录入 {t['number']} 交路")
-                                EXPORTER.exportTrainInfo(t)
-                            else:
-                                LOGGER.info(f"缓存 {s['train_num']} 交路")
-                                JIAOLU_SYNC[s["train_num"]] = je
+                            LOGGER.info(f"缓存 {s['train_num']} 交路")
+                            JIAOLU_SYNC[s["train_num"]] = je
                     LOGGER.info(f"录入 {inst.number} 交路")
                     return inst
 
     for x in inst.timetable:
         try:
-            _inst = _jiaolu(inst,x["station"])
+            _inst = _jiaolu(inst, x["station"])
             assert _inst.diagram != []
             break
         except:
@@ -273,7 +266,13 @@ def getJiaolu(inst):
     
     if _inst == None:
         _inst = inst
-    
-    if _inst.diagram == []:
-        LOGGER.debug(f"{inst.number} 无交路")
+
     return _inst
+
+def afterFixJiaolu(inst):
+    if inst["number"] in JIAOLU_SYNC.keys():
+        inst["diagram"] = JIAOLU_SYNC[inst["number"]]
+        del JIAOLU_SYNC[inst["number"]]
+    else:
+        LOGGER.debug(f"{inst['number']} 无交路")
+    return inst
