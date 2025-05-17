@@ -1,5 +1,4 @@
 from pymongo import MongoClient
-from railgo.config import *
 import json
 
 
@@ -12,13 +11,16 @@ class MongoJsonExporter(object):
         self.train_collection = self.db['trains']
         self.station_collection = self.db['stations']
 
+        self.train_collection.delete_many({})
+        self.station_collection.delete_many({})
+
     def exportTrainInfo(self, train):
         if not isinstance(train, dict):
             d = train.toJson()
         else:
             d = train
         if d == {} or d is None:
-            LOGGER.warning("接收到空数据")
+            #LOGGER.warning("接收到空数据")
             return
         self.train_collection.update_one(
             {'number': d["number"]},
@@ -32,13 +34,20 @@ class MongoJsonExporter(object):
         else:
             d = station
         if d == {} or d is None:
-            LOGGER.warning("接收到空数据")
+            #LOGGER.warning("接收到空数据")
             return
         self.station_collection.update_one(
             {'name': d["name"]},
             {'$set': d},
             upsert=True
         )
+    
+    def updateStationInfo(self, station, change, ats=False):
+        self.station_collection.update_one(
+            {'name':station},
+            {('$addToSet' if ats else '$set'):change}
+        )
+
 
     def getTrain(self, number):
         return self.train_collection.find_one({'number': number})
@@ -53,11 +62,33 @@ class MongoJsonExporter(object):
         return list(self.station_collection.find())
 
     def exportToJson(self, output_file):
+        td = self.clearObjectID(self.train_collection.find())
+        ts = self.clearObjectID(self.station_collection.find())
+        it = {}
+        ia = {}
+        for x in range(0,len(td)):
+            item = td[x]
+            for i in item["numberFull"]:
+                it[i] = x
+        
+        for x in range(0,len(ts)):
+            item = ts[x]
+            ia[item["tgcode"]] = x
+        
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump({
-                'trains': list(self.train_collection.find()),
-                'stations': list(self.station_collection.find())
+                'trains': td,
+                'stations': ts,
+                '_index_trains': it,
+                '_index_stations': ia
             }, f, ensure_ascii=False)
+    
+    def clearObjectID(self, iterator):
+        l = []
+        for x in iterator:
+            del x["_id"]
+            l.append(x)
+        return l
 
     def close(self):
         self.client.close()

@@ -10,6 +10,8 @@ from Crypto.Util.Padding import pad, unpad
 
 from railgo.config import *
 
+import warnings
+warnings.filterwarnings('ignore')
 
 def postM(api, form):
     '''MpaaS表单通讯'''

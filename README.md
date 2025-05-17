@@ -14,21 +14,23 @@ RailGo 后端爬虫主代码。
 **railgo.parser**
 - 车次信息
 - 车次担当信息
-- [WIP] 车次交路分析
+- 车次交路分析
 - 车站信息（拼音码、电报码、TMIS）
 
 ### 运行
 安装依赖: `pip install -r requirements.txt`
 
-启动核心: `python core.py --help` 获取帮助。
+启动核心: `python main.py`
 
 ### 存储
-运行后会自动在`out`目录生成下列数据文件:
-- `trains.json` 列车时刻表核心数据。
-- `station.json` 车站信息辅助数据。
-- [WIP] ~~`mapRoute.json` 铁路线路辅助数据。~~
+运行后会自动在`export`目录生成`railgo.json`数据文件，其中:
+- `trains` 列车时刻表核心数据，包括每列车的信息。
+- `station` 车站信息辅助数据。
+- [WIP] ~~`map` 铁路线路辅助数据。~~
 
-可参照`railgo.parser.db.JsonExporter`自己写接口以导入到MySQL, MongoDB等数据库中。
+其中，`_index_`开头字段是方便APP查询用，主键为`trains`列车车次号，`station`车站电报码。
+
+可参照`railgo.parser.db.MongoJsonExporter`自己写接口以导入到MySQL等数据库中。
 
 日志默认打印到控制台且存储在`latest.log`中。
 
@@ -45,7 +47,7 @@ RailGo 后端爬虫主代码。
 
     如果代码是`1000`，则问题不在这里，请看看traceback，有可能是用`mPaaS`请求的其他地方出现了问题。
 
-    ***注意***: 不确定可不可能存在限速/封IP（根据过往经验多发于节假日等抢票高峰期），请多试几次。
+    ***注意***: 可能存在限速/封IP（根据过往经验多发于节假日等抢票高峰期），若出现`43003`，请适当增加延时。
 
 - 大量 `车次XXXX出现空数据` 异常
   
@@ -55,7 +57,7 @@ RailGo 后端爬虫主代码。
 - 12306 ( 核心数据 )
 - 国铁吉讯 ( 核心数据 )
 - 95306 ( 车站补充信息 )
-- 昆铁货运 ( 车站补充信息 )
+- ~~昆铁货运 ( 车站补充信息 )~~
   
 本程序采集的所有数据都是公开数据。
 
@@ -65,9 +67,10 @@ RailGo 后端爬虫主代码。
 核心开发人员：
 - ChenMo 
 - TKP30
+- mstouk57g
 
 其余提供帮助的人士：
-
+- XieXiLin
 
 ### 参考
 - http://www.ldbb.cn/news/7281.html

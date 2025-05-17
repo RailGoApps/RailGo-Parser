@@ -1,3 +1,5 @@
 __pycache__/
 dbgtools/
 export/
+.vscode/
+railgo.log

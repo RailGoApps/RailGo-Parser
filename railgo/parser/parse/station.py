@@ -80,10 +80,15 @@ def getKMLineInfo(inst, kycache):
 
 def updateStationBelongInfo(station, bureau, belong):
     '''从列车时刻表更新车站所属路局及车务段'''
-    s = EXPORTER.getStation(station)
-    s["belong"] = belong
-    s["bureau"] = bureau
-    EXPORTER.exportStationInfo(s, station)
+    EXPORTER.updateStationInfo(station, {
+        "belong": belong,
+        "bureau": bureau
+    })
+
+def updatePassTrain(station, train):
+    EXPORTER.updateStationInfo(station, {
+        "trainList": train
+    }, ats=True)
 
 
 def stationTogether():

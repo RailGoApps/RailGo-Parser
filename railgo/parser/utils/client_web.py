@@ -2,8 +2,12 @@
 from railgo.config import LOGGER
 import requests
 import time
+import retry
 
+import warnings
+warnings.filterwarnings('ignore')
 
+@retry.retry(tries=5, delay=5)
 def get(url, headers={}, data={}):
     tc = 0
     while tc < 5:
@@ -20,7 +24,7 @@ def get(url, headers={}, data={}):
         time.sleep(10)
     raise ConnectionRefusedError("Too fast or data error")
 
-
+@retry.retry(tries=5, delay=5)
 def post(url, headers={}, json={}, data={}):
     tc = 0
     while tc < 5:

@@ -1,0 +1,37 @@
+[project]
+name = "RailGo-Parser"
+version = "1.0.0"
+description = "Offline data parser for RailGo project"
+authors = [
+    {name = "TKP30", email = "572747232@qq.com"},
+]
+readme = "README.md"  
+requires-python = ">=3.7"
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+dependencies = [
+    "requests",
+    "flask",
+    "pycryptodome",
+    "datetime",
+    "pymongo",
+    "retry",
+]
+
+[project.urls]
+Homepage = "https://github.com/AZ-Studio-2023/RailGo-Parser"
+Repository = "https://github.com/AZ-Studio-2023/RailGo-Parser"
+
+[build-system]
+requires = ["setuptools>=42"]
+build-backend = "setuptools.build_meta"

@@ -1,5 +1,6 @@
 from celery import Celery
 from railgo.parser.db.mongo_json import MongoJsonExporter
+from concurrent.futures import ThreadPoolExecutor
 import logging
 
 # 枚举车次列表
@@ -8,7 +9,7 @@ TRAIN_KIND_KEYWORDS = [
     "1", "2", "3", "4", "5", "6", "7", "8"  # 无冠
 ]
 
-# 静态数据
+# 路局代码数据
 BUREAU_CODE = {
     "B": "哈尔滨局",
     "X": "香港铁路公司",
@@ -29,8 +30,34 @@ BUREAU_CODE = {
     "J": "兰州局",
     "R": "乌鲁木齐局",
     "O": "青藏铁路公司",
+    "U": "广东城际",
     "I": "边境口岸",
     "-": "国际联运"
+}
+
+BUREAU_SHORT_CODE = {
+    "B": "哈局",
+    "X": "港铁",
+    "T": "沈局",
+    "P": "京局",
+    "V": "太局",
+    "C": "呼局",
+    "F": "郑局",
+    "N": "武局",
+    "Y": "西局",
+    "K": "济局",
+    "H": "上局",
+    "G": "南局",
+    "Q": "广铁",
+    "Z": "宁局",
+    "W": "成局",
+    "M": "昆局",
+    "J": "兰局",
+    "R": "乌局",
+    "O": "青藏",
+    "I": "口岸",
+    "U": "广东城际",
+    "-": "联运"
 }
 
 BUREAU_SGCODE = {
@@ -55,6 +82,31 @@ BUREAU_SGCODE = {
     "口": "边境口岸"
 }
 
+CAR_STYLE_CODE_MAP = {
+    "CR200J_16": "CR200J (长编)",
+    "CR200J": "CR200J (短编)",
+    "CRH1_668": "CRH1A (200)",
+    "CRH1_649": "CRH1A (250)",
+    "CRH1_1299_1": "CRH1B (1E头型)",
+    "CRH380A_494": "CRH380A (旧型)",
+    "CRH380A_556": "CRH380A (统型)",
+    "CRH380AL_1066": "CRH380AL (一阶)",
+    "CRH380AL_1099": "CRH380AL (二阶)",
+    "CRH380D_554H": "CRH380D (旧型)",
+    "CRH2A_610": "CRH2A (旧型)",
+    "CRH2A_613": "CRH2A (统型)",
+    "CRH2B_1230H": "CRH2B (旧型)",
+    "CRH2B_1230": "CRH2B (统型)",
+    "CRH2C2_610": "CRH2C (一阶)",
+    "CRH2C1_610": "CRH2C (二阶)",
+    "CRH3C_556": "CRH3C (一阶)",
+    "CRH3C_556H": "CRH3C (二阶)",
+    "CRH5G_606": "CRH5G (旧型)",
+    "CRH5G_613": "CRH5G (技术提升)"
+    # CRH380A_556 + CRH380D = CRH380D 统
+    # CRH2E_110 + CRH1E = CRH1E-NG
+}
+
 # 导出
 EXPORTER_MONGO_OUTPUT = "./export/railgo.json"
 EXPORTER = MongoJsonExporter()
@@ -65,18 +117,10 @@ STATION_XLS_EXCEPT = ["花所", "八所"]  # 特判
 
 # 交路缓存
 JIAOLU_SYNC = {}
+JIAOLU_APPLIED_CACHE = []
 
 # 队列
-PIPE_CELERY = Celery(
-    "railgo",
-    broker="redis://localhost:6379/railgo_queue_broker",
-    backend="redis://localhost:6379/railgo_queue_backend"
-)
-PIPE_CELERY.conf.update(
-    task_always_eager=False,
-    worker_concurrency=15,
-    worker_pool='threads',
-)
+PIPE_POOL = ThreadPoolExecutor(20)
 PIPE_TRAIN_PROCESSORS = [
     "getTrainRundays",
     "getTrainMain",
@@ -98,6 +142,7 @@ PIPE_STATION_EXPORTERS = [
 # MpaaS通讯数据
 # q 3,143,85,51,185,189,86,234,100,155,143,82,147,16,39,237,126,143,118,38,14,236,7,167,187,208,65,144,46,5,201,168,70
 # g 2,240,27,67,77,185,210,37,251,149,2,68,94,191,45,147,17,232,178,213,131,122,85,123,63,16,72,152,105,133,132,4,30
+# Q->Key:16位分块 整块xor 剩余一个字节补\x0f
 MGW_RG_CONST = b'\x02\xf0\x1bCM\xb9\xd2%\xfb\x95\x02D^\xbf-\x93\x11\xe8\xb2\xd5\x83zU{?\x10H\x98i\x85\x84\x04\x1e'
 MGW_RQ_KEY = b'}\x00#\x15\xb7QQM\xdfK\xce\xc2\xbd\x15\xeeE'
 MGW_RQ_IV = b'F\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f\x0f'
@@ -109,6 +154,7 @@ logging.basicConfig(
 LOGGER = logging.getLogger("Parser")
 # LOGGER.addHandler(logging.StreamHandler())
 LOGGER.setLevel(logging.DEBUG)
+#LOGGER.setLevel(logging.INFO)
 LOGGER.addHandler(logging.FileHandler("./railgo.log"))
 
 # 重开

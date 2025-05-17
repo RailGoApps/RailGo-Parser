@@ -1,36 +1,43 @@
 class TrainModel(object):
     '''客运列车数据结构'''
-    number = None
-    code = None
-    numberFull = None
-    type = None
+    number = ""
+    numberFull = []
+    numberKind = ""
+    code = ""
+    type = ""
 
-    bureau = None
-    runner = None
-    carowner = None
-    car = None
+    bureau = ""
+    bureauName = ""
+    runner = ""
+    carOwner = ""
+    car = ""
 
     diagram = []
-    timetable = None
-    rundays = None
-    route = None
+    timetable = []
+    spend = 0
+    rundays = []
+    route = []
 
     isTemp = False
+    isFuxing = False
 
     def toJson(self):
         return {
             "number": self.number,
-            "code": self.code,
             "numberFull": self.numberFull,
+            "numberKind": self.numberKind,
+            "code": self.code,
             "bureau": self.bureau,
+            "bureauName": self.bureauName,
             "type": self.type,
             "diagram": self.diagram,
             "rundays": self.rundays,
             "route": self.route,
             "runner": self.runner,
-            "carowner": self.carowner,
+            "carOwner": self.carOwner,
             "car": self.car,
             "timetable": self.timetable,
+            "spend": self.spend,
             "isTemp": self.isTemp
         }
 
