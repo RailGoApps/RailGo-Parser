@@ -73,7 +73,7 @@ class MongoJsonExporter(object):
         
         for x in range(0,len(ts)):
             item = ts[x]
-            ia[item["tgcode"]] = x
+            ia[item["telecode"]] = x
         
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump({

@@ -18,8 +18,10 @@ class TrainModel(object):
     rundays = []
     route = []
 
-    isTemp = False
+    isTemp = False # 临客flag 因为交路按缓存跑的比较麻烦 先放着空
     isFuxing = False
+
+    _beginDay = ""
 
     def toJson(self):
         return {

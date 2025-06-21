@@ -3,3 +3,5 @@ dbgtools/
 export/
 .vscode/
 railgo.log
+auto_deliver.py
+parserFullwork.bat

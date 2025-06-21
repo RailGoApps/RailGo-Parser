@@ -1,23 +1,25 @@
 class StationModel(object):
-    bureau = None
-    belong = None
-    name = None
-    tmism = None
-    tgcode = None
-    pycode = None
-    line = None
-    type = 0  # 0=通过 1=客运 2=货运 3=客货 4=线路所
+    bureau = ""
+    belong = ""
+    name = ""
+    tmism = "未知"
+    telecode = ""
+    pinyin = ""
+    pinyinTriple = ""
+    lines = []
+    type = []  # 货 客 高 行 运
     trainList = []
 
     def toJson(self):
         return {
             "name": self.name,
             "tmism": self.tmism,
-            "tgcode": self.tgcode,
-            "pycode": self.pycode,
+            "telecode": self.telecode,
+            "pinyin": self.pinyin,
+            "pinyinTriple": self.pinyinTriple,
             "bureau": self.bureau,
             "belong": self.belong,
-            "line": self.line,
+            "lines": self.lines,
             "type": self.type,
             "trainList": self.trainList
         }

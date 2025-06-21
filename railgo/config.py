@@ -1,4 +1,3 @@
-from celery import Celery
 from railgo.parser.db.mongo_json import MongoJsonExporter
 from concurrent.futures import ThreadPoolExecutor
 import logging
@@ -85,6 +84,9 @@ BUREAU_SGCODE = {
 CAR_STYLE_CODE_MAP = {
     "CR200J_16": "CR200J (长编)",
     "CR200J": "CR200J (短编)",
+    "CR200J3-C-676": "CR200J (智能型短编)", # 占位
+    "CR200J_1012": "CR200J (智能型长编)", # 占位
+    "CRH1_646": "CRH1A (200)",
     "CRH1_668": "CRH1A (200)",
     "CRH1_649": "CRH1A (250)",
     "CRH1_1299_1": "CRH1B (1E头型)",

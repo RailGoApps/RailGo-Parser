@@ -4,3 +4,4 @@ pycryptodome
 datetime
 pymongo
 retry
+pypinyin

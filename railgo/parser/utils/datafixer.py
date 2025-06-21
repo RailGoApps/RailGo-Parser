@@ -1,5 +1,6 @@
 '''专门用来修补铁科院各种抽象代码及额外计算'''
 from math import radians, sin, cos, sqrt, atan2
+from pypinyin import pinyin, lazy_pinyin
 
 
 def fix_train_id(tid):
@@ -18,7 +19,7 @@ def summary_train_codes(cs):
 def searlize_simple_train_codes(cs):
     '''补全复车次 G1201/2 -> G1201/1202'''
     base = cs.split("/")[0]
-    l = {base,}
+    l = {base, }
     for x in cs.split("/")[1:]:
         ab = list(base)
         if len(x) == 1:
@@ -56,3 +57,39 @@ def haversine(coords):
         lat2, lon2 = coords[i + 1]
         distance += atob(lat1, lon1, lat2, lon2)
     return distance
+
+
+def stationPinyin(text, jianpin):
+    '''复原车站拼音并概括三字拼音代码'''
+    try:
+        r = []
+        if len(text) != len(jianpin):
+            # 因更名
+            r = lazy_pinyin(text, style=0)
+        else:
+            p = pinyin(text, heteronym=True, style=0)
+            for x in range(len(text)):
+                if len(p[x]) == 1:
+                    # 不考虑多音字问题，避免更名历史车站简码出事
+                    r.append(p[x][0])
+                else:
+                    for i in p[x]:
+                        if jianpin[x].lower() == i[0]:
+                            r.append(i)
+                            break
+                    if len(r) != x+1:
+                        r.append(p[x][0])
+        triple = ""
+        if len(text) == 1:
+            triple = r[0][:3]
+        elif len(text) == 2:
+            triple = r[0][0]+r[1][:2]
+        elif len(text) == 3:
+            triple = r[0][0]+r[1][0]+r[2][0]
+        else:
+            triple = r[0][0]+r[1][0]+r[-1][0]
+
+        return "".join(r).capitalize(), triple.upper()
+    except Exception as e:
+        print(e, r, text, jianpin)
+        return "".join(r).capitalize(), ""

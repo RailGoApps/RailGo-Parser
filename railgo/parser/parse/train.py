@@ -55,7 +55,7 @@ def getTrainMain(inst):
     req = post(
         "https://mobile.12306.cn/wxxcx/wechat/main/travelServiceQrcodeTrainInfo", data={
             "trainCode": inst.number,
-            "startDay": inst.rundays[0]
+            "startDay": inst._beginDay
         })
     crj = req.json()
 
@@ -72,11 +72,13 @@ def getTrainMain(inst):
             # inst.code = crj["data"]["trainNo"]
             inst.runner = crj["data"]["trainDetail"]["stopTime"][0]["jiaolu_corporation_code"]
             inst.carOwner = crj["data"]["trainDetail"]["stopTime"][0]["jiaolu_dept_train"]
-            inst.car = crj["data"]["trainDetail"]["stopTime"][0]["jiaolu_train_style"]
+            inst.car = crj["data"]["trainDetail"]["stopTime"][0]["jiaolu_train_style"].replace(
+                "重联", " 重联")
             inst.bureau = crj["data"]["trainDetail"]["stopTime"][0]["corporation_code"][0]
             inst.bureauName = BUREAU_SHORT_CODE.get(inst.bureau, "未知")
             try:
-                inst.car = crj["data"]["trainDetail"]["trainsetTypeInfo"]["trainsetTypeName"]
+                inst.car = crj["data"]["trainDetail"]["trainsetTypeInfo"]["trainsetTypeName"].replace(
+                    "重联", " 重联")
             except:
                 pass
 
@@ -107,22 +109,35 @@ def getTrainMain(inst):
             inst.numberFull = list(sorted(list(tctemp)))
             try:
                 if crj["data"]["trainDetail"]["stopTime"][0]["train_style"] in CAR_STYLE_CODE_MAP:
-                    if "CRH380D" in inst.car:
+                    if "CRH380D" in inst.car and crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CRH380A_556":
                         if "重联" in inst.car:
-                            inst.car = "CRH380D (统型)重联"
+                            inst.car = "CRH380D (统型) 重联"
                         else:
                             inst.car = "CRH380D (统型)"
-                    elif "CRH1E" in inst.car:
+                    elif "CRH1E" in inst.car and crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CRH2E_110":
                         if "重联" in inst.car:
-                            inst.car = "CRH1E-NG重联"
+                            inst.car = "CRH1E-NG 重联"
                         else:
                             inst.car = "CRH1E-NG"
+                    elif "CR200J" in inst.car and "-" in inst.car:
+                        if "重联" in inst.car:
+                            if crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J3-C-676" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J":
+                                inst.car = inst.car.replace(" 重联","")
+                                inst.car += "(短编) 重联"
+                            elif crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_1012" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_16":
+                                inst.car = inst.car.replace(" 重联","")
+                                inst.car += "(长编) 重联"
+                        else:
+                            if crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J3-C-676" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J":
+                                inst.car += "(短编)"
+                            elif crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_1012" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_16":
+                                inst.car += "(长编)"
                     elif "重联" in inst.car:
-                        inst.car = CAR_STYLE_CODE_MAP[crj["data"]
-                                                    ["trainDetail"]["stopTime"][0]["train_style"]]+"重联"
+                        inst.car = CAR_STYLE_CODE_MAP[crj["data"]["trainDetail"]
+                                                      ["stopTime"][0]["train_style"]]+" 重联"
                     else:
                         inst.car = CAR_STYLE_CODE_MAP[crj["data"]
-                                                    ["trainDetail"]["stopTime"][0]["train_style"]]
+                                                      ["trainDetail"]["stopTime"][0]["train_style"]]
             except:
                 pass
         except Exception as e:
@@ -142,9 +157,9 @@ def getTrainMainApp(inst):
               {
                   "fromStation": "",
                   "toStation": "",
-                               "trainCode": inst.number,
-                               "trainType": "",
-                               "trainDate": inst.rundays[0]
+                  "trainCode": inst.number,
+                  "trainType": "",
+                  "trainDate": inst._beginDay
               }
               )
     try:
@@ -158,7 +173,7 @@ def getTrainMainApp(inst):
     inst.numberKind = "" if inst.number[0].isdigit() else inst.number[0]
     inst.runner = crj["stopTime"][0]["jiaolu_corporation_code"]
     inst.carOwner = crj["stopTime"][0]["jiaolu_dept_train"]
-    inst.car = crj["stopTime"][0]["jiaolu_train_style"]
+    inst.car = crj["stopTime"][0]["jiaolu_train_style"].replace("重联", " 重联")
     inst.bureau = crj["stopTime"][0]["corporation_code"][0]
     inst.bureauName = BUREAU_SHORT_CODE.get(inst.bureau, "未知")
     try:
@@ -188,22 +203,35 @@ def getTrainMainApp(inst):
     inst.spend = int(crj["data"]["trainDetail"]["stopTime"][-1]["runningTime"])
     try:
         if crj["data"]["trainDetail"]["stopTime"][0]["train_style"] in CAR_STYLE_CODE_MAP:
-            if "CRH380D" in inst.car:
+            if "CRH380D" in inst.car and crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CRH380A_556":
                 if "重联" in inst.car:
-                    inst.car = "CRH380D (统型)重联"
+                    inst.car = "CRH380D (统型) 重联"
                 else:
                     inst.car = "CRH380D (统型)"
-            elif "CRH1E" in inst.car:
+            elif "CRH1E" in inst.car and crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CRH2E_110":
                 if "重联" in inst.car:
-                    inst.car = "CRH1E-NG重联"
+                    inst.car = "CRH1E-NG 重联"
                 else:
                     inst.car = "CRH1E-NG"
+            elif "CR200J" in inst.car and "-" in inst.car:
+                if "重联" in inst.car:
+                    if crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J3-C-676" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J":
+                        inst.car = inst.car.replace(" 重联","")
+                        inst.car += "(短编) 重联"
+                    elif crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_1012" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_16":
+                        inst.car = inst.car.replace(" 重联","")
+                        inst.car += "(长编) 重联"
+                else:
+                    if crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J3-C-676" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J":
+                        inst.car += "(短编)"
+                    elif crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_1012" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_16":
+                        inst.car += "(长编)"
             elif "重联" in inst.car:
                 inst.car = CAR_STYLE_CODE_MAP[crj["data"]
-                                            ["trainDetail"]["stopTime"][0]["train_style"]]+"重联"
+                                              ["trainDetail"]["stopTime"][0]["train_style"]]+" 重联"
             else:
                 inst.car = CAR_STYLE_CODE_MAP[crj["data"]
-                                            ["trainDetail"]["stopTime"][0]["train_style"]]
+                                              ["trainDetail"]["stopTime"][0]["train_style"]]
     except:
         pass
     LOGGER.debug(f"车次主信息 {inst.number}: 完成")
@@ -225,10 +253,17 @@ def getTrainRundays(inst):
         raise LookupError
     for x in j["running_list"]:
         if x["flag"] == "1":
-            if len(rundays) == 0 and (datetime.datetime.strptime(x["date"], "%Y%m%d") - datetime.datetime.now()).days > 14:
-                raise LookupError
             rundays.append(x["date"])
+    
     inst.rundays = rundays
+    try:
+        inst._beginDay = list(filter(lambda date: datetime.datetime.strptime(date, '%Y%m%d') >=
+                                     datetime.datetime.now(), inst.rundays))[0]
+        assert (datetime.datetime.strptime(inst._beginDay,
+                "%Y%m%d") - datetime.datetime.now()).days < 14
+    except Exception:
+        raise LookupError
+    
     LOGGER.debug(f"车次开行计划 {inst.number}: 完成")
     return inst
 
@@ -236,7 +271,7 @@ def getTrainRundays(inst):
 def getTrainKind(inst):
     '''获取车种（丐版时刻表）'''
     r = get(
-        f"https://mobile.12306.cn/weixin/wxcore/queryByTrainNo?train_no={inst.code}&depart_date={datetime.datetime.strptime(inst.rundays[0],'%Y%m%d').strftime('%Y-%m-%d')}")
+        f"https://mobile.12306.cn/weixin/wxcore/queryByTrainNo?train_no={inst.code}&depart_date={datetime.datetime.strptime(inst._beginDay,'%Y%m%d').strftime('%Y-%m-%d')}")
     d = r.json()
     if len(d["data"]["data"]) == 0:
         # 图纸车
@@ -260,7 +295,7 @@ def getTrainKind(inst):
 def getTrainDistanceCRGT(inst):
     '''国铁吉讯：获取列车运行里程'''
     r = post("https://tripapi.ccrgt.com/crgt/trip-server-app/wx/train/getTrainInfoNode", json={
-        "params": {"trainNumber": inst.number, "date": datetime.datetime.strptime(inst.rundays[0], "%Y%m%d").strftime("%Y-%m-%d")},
+        "params": {"trainNumber": inst.number, "date": datetime.datetime.strptime(inst._beginDay, "%Y%m%d").strftime("%Y-%m-%d")},
         "isSign": 0,
         "token": "",
         "cguid": "",
@@ -296,9 +331,8 @@ def getJiaolu(inst):
             JIAOLU_APPLIED_CACHE.append(inst.number)
             return inst
 
-        station_code = EXPORTER.getStation(station)["tgcode"]
         r = post(
-            f"https://mobile.12306.cn/wxxcx/wechat/bigScreen/queryTrainByStation?train_start_date={inst.rundays[0]}&train_station_code={station_code}")
+            f"https://mobile.12306.cn/wxxcx/wechat/bigScreen/queryTrainByStation?train_start_date={inst._beginDay}&train_station_code={station}")
         if not r.json()["status"]:
             # 小部分车站无法获得数据，应当按车次顺延到下一站
             # LOGGER.debug(f"交路车站 {station_code} 遭到黑洞，顺延后续车站")
@@ -332,17 +366,14 @@ def getJiaolu(inst):
 
         return inst
 
+    _inst = inst
     for x in inst.timetable:
         try:
-            _inst = _jiaolu(inst, x["station"])
+            _inst = _jiaolu(inst, x["stationTelecode"])
             assert _inst.diagram != []
             break
         except:
             continue
-
-    if _inst == None:
-        _inst = inst
-
     LOGGER.info(f"{inst.number} 交路获取成功")
 
     return _inst
