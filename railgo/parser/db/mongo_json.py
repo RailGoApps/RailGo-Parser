@@ -10,7 +10,9 @@ class MongoJsonExporter(object):
         self.db = self.client["railgo_parser"]
         self.train_collection = self.db['trains']
         self.station_collection = self.db['stations']
-
+    
+    def clear(self):
+        '''避免人工导出时误清理'''
         self.train_collection.delete_many({})
         self.station_collection.delete_many({})
 

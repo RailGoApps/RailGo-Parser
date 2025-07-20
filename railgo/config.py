@@ -84,6 +84,7 @@ BUREAU_SGCODE = {
 CAR_STYLE_CODE_MAP = {
     "CR200J_16": "CR200J (长编)",
     "CR200J": "CR200J (短编)",
+    "CR200J3-C_1012": "CR200J (智能型长编)", # 占位
     "CR200J3-C-676": "CR200J (智能型短编)", # 占位
     "CR200J_1012": "CR200J (智能型长编)", # 占位
     "CRH1_646": "CRH1A (200)",
@@ -161,6 +162,5 @@ LOGGER.addHandler(logging.FileHandler("./railgo.log"))
 
 # 重开
 
-
 def resetWorks():
-    pass
+    EXPORTER.clear()

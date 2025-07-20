@@ -98,9 +98,6 @@ def getTrainMain(inst):
                 try:
                     updateStationBelongInfo(
                         x["stationName"], BUREAU_CODE[x["station_corporation_code"].split("#")[0]], x["station_corporation_code"].split("#")[1])
-                    updatePassTrain(
-                        x["stationName"], inst.number
-                    )
                 except:
                     # 暂时忽略无信息的车站段
                     pass
@@ -124,13 +121,13 @@ def getTrainMain(inst):
                             if crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J3-C-676" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J":
                                 inst.car = inst.car.replace(" 重联","")
                                 inst.car += "(短编) 重联"
-                            elif crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_1012" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_16":
+                            elif crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_1012" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_16" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J3-C_1012":
                                 inst.car = inst.car.replace(" 重联","")
                                 inst.car += "(长编) 重联"
                         else:
                             if crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J3-C-676" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J":
                                 inst.car += "(短编)"
-                            elif crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_1012" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_16":
+                            elif crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_1012" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_16" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J3-C_1012":
                                 inst.car += "(长编)"
                     elif "重联" in inst.car:
                         inst.car = CAR_STYLE_CODE_MAP[crj["data"]["trainDetail"]
@@ -142,6 +139,11 @@ def getTrainMain(inst):
                 pass
         except Exception as e:
             return getTrainMainApp(inst)
+    
+    for x in inst.timetable:
+        updatePassTrain(
+            x["station"], inst
+        )
     LOGGER.debug(f"车次主信息 {inst.number}: 完成")
     return inst
 
@@ -195,9 +197,6 @@ def getTrainMainApp(inst):
         tctemp.add(x["dispTrainCode"])
         updateStationBelongInfo(
             x["stationName"], BUREAU_CODE[x["station_corporation_code"].split("#")[0]], x["station_corporation_code"].split("#")[1])
-        updatePassTrain(
-            x["stationName"], inst.number
-        )
 
     inst.numberFull = list(sorted(list(tctemp)))
     inst.spend = int(crj["data"]["trainDetail"]["stopTime"][-1]["runningTime"])
@@ -218,13 +217,13 @@ def getTrainMainApp(inst):
                     if crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J3-C-676" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J":
                         inst.car = inst.car.replace(" 重联","")
                         inst.car += "(短编) 重联"
-                    elif crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_1012" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_16":
+                    elif crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_1012" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_16" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J3-C_1012":
                         inst.car = inst.car.replace(" 重联","")
                         inst.car += "(长编) 重联"
                 else:
                     if crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J3-C-676" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J":
                         inst.car += "(短编)"
-                    elif crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_1012" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_16":
+                    elif crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_1012" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J_16" or crj["data"]["trainDetail"]["stopTime"][0]["train_style"] == "CR200J3-C_1012":
                         inst.car += "(长编)"
             elif "重联" in inst.car:
                 inst.car = CAR_STYLE_CODE_MAP[crj["data"]
@@ -234,6 +233,12 @@ def getTrainMainApp(inst):
                                               ["trainDetail"]["stopTime"][0]["train_style"]]
     except:
         pass
+
+    for x in inst.timetable:
+        updatePassTrain(
+            x["station"], inst
+        )
+    
     LOGGER.debug(f"车次主信息 {inst.number}: 完成")
     return inst
 

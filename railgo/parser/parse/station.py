@@ -34,9 +34,9 @@ def getHYFWList():
         i.name = x["czmc"]
         i.telecode = x["czdbm"]
         i.tmism = x["cztmis"]
-        #if "境" in x["czmc"]:
+        # if "境" in x["czmc"]:
         #    i.bureau = "边境口岸"
-        #else:
+        # else:
         #    i.bureau = BUREAU_SGCODE[x["ljjc"]]
         i.bureau = BUREAU_SGCODE[x["ljjc"]]
         i.pinyin, i.pinyinTriple = stationPinyin(x["czmc"], x["czpym"])
@@ -49,16 +49,19 @@ def getKMLineInfo(inst, kycache):
 
 def updateStationBelongInfo(station, bureau, belong):
     '''从列车时刻表更新车站所属路局及车务段'''
+    if not (belong.endswith("段") or belong.endswith("站")) and belong != "":
+        belong += "站"
     EXPORTER.updateStationInfo(station, {
         "belong": belong,
         "bureau": bureau
     })
 
+
 def updatePassTrain(station, train):
     EXPORTER.updateStationInfo(station, {
-        "trainList": train
+        "trainList": train.number
     }, ats=True)
-    if train.startswith("G") :
+    if train.number.startswith("G"):
         EXPORTER.updateStationInfo(station, {
             "type": "高"
         }, ats=True)
