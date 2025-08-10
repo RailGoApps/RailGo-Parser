@@ -95,13 +95,13 @@ def init_jiaolu():
 
 def launchMainPipe():
     ts = time.time()
-    init_stations()
+    #init_stations()
     LOGGER.info("=======车站信息爬取完成=======")
-    init_train()
-    init_jiaolu()
+    #init_train()
+    #init_jiaolu()
     LOGGER.info("=======车次信息爬取完成=======")
     PIPE_POOL.shutdown(wait=True)
-    EXPORTER.exportToJson(EXPORTER_MONGO_OUTPUT)
+    EXPORTER.export()
     EXPORTER.close()
     LOGGER.info(f"本批耗时：{time.time()-ts}s")
     LOGGER.info("单批爬取完毕，结束本批运行")

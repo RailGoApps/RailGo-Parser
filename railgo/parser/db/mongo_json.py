@@ -1,15 +1,18 @@
 from pymongo import MongoClient
 import json
 
+from railgo.parser.db.base import ExporterBase
 
-class MongoJsonExporter(object):
+
+class MongoJsonExporter(ExporterBase):
     '''利用MongoDB存储导出数据，并导出为JSON文件'''
 
-    def __init__(self):
+    def __init__(self, location):
         self.client = MongoClient("127.0.0.1", 27017)
         self.db = self.client["railgo_parser"]
         self.train_collection = self.db['trains']
         self.station_collection = self.db['stations']
+        self.export_location = location
     
     def clear(self):
         '''避免人工导出时误清理'''
@@ -63,7 +66,7 @@ class MongoJsonExporter(object):
     def stationInfoList(self):
         return list(self.station_collection.find())
 
-    def exportToJson(self, output_file):
+    def export(self):
         td = self.clearObjectID(self.train_collection.find())
         ts = self.clearObjectID(self.station_collection.find())
         it = {}
@@ -77,7 +80,7 @@ class MongoJsonExporter(object):
             item = ts[x]
             ia[item["telecode"]] = x
         
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(self.export_location, 'w', encoding='utf-8') as f:
             json.dump({
                 'trains': td,
                 'stations': ts,

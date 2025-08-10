@@ -40,7 +40,8 @@ class TrainModel(object):
             "car": self.car,
             "timetable": self.timetable,
             "spend": self.spend,
-            "isTemp": self.isTemp
+            "isTemp": self.isTemp,
+            "isFuxing": self.isFuxing
         }
 
     def __hash__(self):

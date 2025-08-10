@@ -1,4 +1,6 @@
 from railgo.parser.db.mongo_json import MongoJsonExporter
+from railgo.parser.db.mongo_sqlite import MongoSQLiteExporter
+from railgo.parser.db.sqlite import SQLiteExporter
 from concurrent.futures import ThreadPoolExecutor
 import logging
 
@@ -111,8 +113,10 @@ CAR_STYLE_CODE_MAP = {
 }
 
 # 导出
-EXPORTER_MONGO_OUTPUT = "./export/railgo.json"
-EXPORTER = MongoJsonExporter()
+#EXPORTER_MONGO_OUTPUT = "./export/railgo.json"
+#EXPORTER = MongoJsonExporter()
+EXPORTER_SQLITE_FILE = "./export/railgo.sqlite"
+EXPORTER = MongoSQLiteExporter(EXPORTER_SQLITE_FILE)
 
 # 车站信息列表
 STATION_95306_CACHE = []  # 客运站缓存
