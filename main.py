@@ -1,4 +1,4 @@
 from railgo.parser.entry import *
 
-#resetWorks()
+resetWorks()
 launchMainPipe()

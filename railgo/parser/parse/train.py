@@ -385,7 +385,7 @@ def getJiaolu(inst):
 
 
 def afterFixJiaolu(inst):
-    if inst["number"] in JIAOLU_SYNC.keys():
+    if inst["number"] in JIAOLU_SYNC:
         inst["diagram"] = JIAOLU_SYNC[inst["number"]]
         del JIAOLU_SYNC[inst["number"]]
     else:
