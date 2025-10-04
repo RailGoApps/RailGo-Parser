@@ -42,14 +42,14 @@ class MongoJsonExporter(ExporterBase):
             #LOGGER.warning("接收到空数据")
             return
         self.station_collection.update_one(
-            {'name': d["name"]},
+            {'telecode': d["telecode"]},
             {'$set': d},
             upsert=True
         )
     
     def updateStationInfo(self, station, change, ats=False):
         self.station_collection.update_one(
-            {'name':station},
+            {'telecode':station},
             {('$addToSet' if ats else '$set'):change}
         )
 
@@ -57,8 +57,8 @@ class MongoJsonExporter(ExporterBase):
     def getTrain(self, number):
         return self.train_collection.find_one({'number': number})
 
-    def getStation(self, name):
-        return self.station_collection.find_one({'name': name})
+    def getStation(self, telecode):
+        return self.station_collection.find_one({'telecode': telecode})
 
     def trainInfoList(self):
         return list(self.train_collection.find())

@@ -47,8 +47,8 @@ def postM(api, form):
         headers={
             "pagets": "",
             "nbappid": "60000013",
-            "nbversion": "5.8.2.23",
-            "appv": "5.8.2.13",
+            "nbversion": "5.9.4.5",
+            "appv": "5.9.4.5",
             "user-agent": "Dalvik/2.1.0 (Linux; U; Android 12; BNE-AL00 Build/V417IR)",
             "Platform": "ANDROID",
             "AppId": "9101430221728",
@@ -57,12 +57,13 @@ def postM(api, form):
             "Operation-Type": "com.cars.otsmobile."+api,
             "x-app-sys-Id": "com.MobileTicket",
             "Retryable2": "0",
-            "x-mgs-encryption": "1",
+            "x-mgs-encryption": "0",
             "x-Content-Encoding": "mgss",
             "Content-Type": "application/json",
         }, verify = False)
     if r.content == b'':
         raise ConnectionError(
             "mPaaS Request Failed: "+r.headers["Result-Status"]+" "+urllib.parse.unquote(r.headers["Memo"]))
+    print(r.json()["error_msg"])
 
     return json.loads(gzip.decompress(unpad(AES.new(MGW_RQ_KEY, AES.MODE_CBC, MGW_RQ_IV).decrypt(r.content), 16)).decode())

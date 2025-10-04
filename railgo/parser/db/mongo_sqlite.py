@@ -8,7 +8,7 @@ class MongoSQLiteExporter(MongoJsonExporter):
         db = sqlite3.connect(self.export_location)
         cursor = db.cursor()
         cursor.execute("CREATE TABLE IF NOT EXISTS trains(code TEXT PRIMARY KEY NOT NULL, number TEXT NOT NULL,numberFull TEXT NOT NULL,numberKind TEXT NOT NULL,bureau TEXT,bureauName TEXT,type TEXT,runner TEXT,car TEXT,carOwner TEXT,diagram TEXT,timetable TEXT NOT NULL,spend INT NOT NULL,rundays TEXT NOT NULL,route TEXT,isTemp INT,isFuxing INT);")
-        cursor.execute("CREATE TABLE IF NOT EXISTS stations(telecode TEXT PRIMARY KEY NOT NULL,pinyin TEXT NOT NULL,pinyinTriple TEXT NOT NULL,tmism TEXT,name TEXT NOT NULL,bureau TEXT,belong TEXT,lines TEXT,type TEXT,trainList TEXT);")
+        cursor.execute("CREATE TABLE IF NOT EXISTS stations(telecode TEXT PRIMARY KEY NOT NULL,pinyin TEXT NOT NULL,pinyinTriple TEXT NOT NULL,tmism TEXT,name TEXT NOT NULL,level TEXT,bureau TEXT,belong TEXT,province TEXT,city TEXT,lines TEXT,type TEXT,trainList TEXT);")
         db.commit()
         cursor.execute("DELETE FROM trains")
         cursor.execute("DELETE FROM stations")
@@ -26,8 +26,8 @@ class MongoSQLiteExporter(MongoJsonExporter):
                 db.rollback()
         for d in self.stationInfoList():
             try:
-                cursor.execute("INSERT INTO stations (telecode, pinyin, pinyinTriple, tmism, name, bureau, belong, lines, type, trainList) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                            (d["telecode"], d["pinyin"], d["pinyinTriple"], d["tmism"], d["name"], d["bureau"], d["belong"], json.dumps(d["lines"], indent=None, separators=(",", ":"), ensure_ascii=False), json.dumps(d["type"], indent=None, separators=(",", ":"), ensure_ascii=False), json.dumps(d["trainList"], indent=None, separators=(",", ":"), ensure_ascii=False)))
+                cursor.execute("INSERT INTO stations (telecode, pinyin, pinyinTriple, tmism, name, level, bureau, belong, province, city, lines, type, trainList) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                            (d["telecode"], d["pinyin"], d["pinyinTriple"], d["tmism"], d["name"], d["level"], d["bureau"], d["belong"], d["province"], d["city"], json.dumps(d["lines"], indent=None, separators=(",", ":"), ensure_ascii=False), json.dumps(d["type"], indent=None, separators=(",", ":"), ensure_ascii=False), json.dumps(d["trainList"], indent=None, separators=(",", ":"), ensure_ascii=False)))
                 db.commit()
             except:
                 db.rollback()

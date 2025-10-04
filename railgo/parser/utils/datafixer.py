@@ -1,6 +1,7 @@
 '''专门用来修补铁科院各种抽象代码及额外计算'''
 from math import radians, sin, cos, sqrt, atan2
 from pypinyin import pinyin, lazy_pinyin
+from railgo.config import *
 
 
 def fix_train_id(tid):
@@ -9,6 +10,17 @@ def fix_train_id(tid):
     tl[1] = tl[1].lower()
     return tl.join("")
 
+def fix_ky_telecode(telecode):
+    '''修正重复电报码的消歧义形式'''
+    if telecode in STATION_UNIQUE_TELECODE_EXCEPT:
+        return telecode + "/"
+    return telecode
+
+def restore_ky_telecode(telecode):
+    '''将软件消歧义形式转化为正确电报码'''
+    if telecode.endswith("/"):
+        return telecode.replace("/","")
+    return telecode
 
 def summary_train_codes(cs):
     '''MpaaS版时刻表不提供完整车次号，故需自行概括'''

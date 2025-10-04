@@ -4,5 +4,5 @@ export/
 .vscode/
 railgo.log
 auto_deliver.py
-parserFullwork.bat
 latest.zip
+devtest.py

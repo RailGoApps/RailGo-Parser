@@ -92,12 +92,12 @@ def getTrainMain(inst):
                     "depart": x["startTime"][:2]+":"+x["startTime"][2:],
                     "stopTime": int(x["stopover_time"]),
                     "station": x["stationName"],
-                    "stationTelecode": x["stationTelecode"]
+                    "stationTelecode": fix_ky_telecode(x["stationTelecode"])
                 })
                 tctemp.add(x["stationTrainCode"])
                 try:
                     updateStationBelongInfo(
-                        x["stationName"], BUREAU_CODE[x["station_corporation_code"].split("#")[0]], x["station_corporation_code"].split("#")[1])
+                        fix_ky_telecode(x["stationTelecode"]), BUREAU_CODE[x["station_corporation_code"].split("#")[0]], x["station_corporation_code"].split("#")[1])
                 except:
                     # 暂时忽略无信息的车站段
                     pass
@@ -142,7 +142,7 @@ def getTrainMain(inst):
     
     for x in inst.timetable:
         updatePassTrain(
-            x["station"], inst
+            fix_ky_telecode(x["stationTelecode"]), inst
         )
     LOGGER.debug(f"车次主信息 {inst.number}: 完成")
     return inst
@@ -192,11 +192,11 @@ def getTrainMainApp(inst):
             "depart": x["startTime"][:2]+":"+x["startTime"][2:],
             "stopTime": int(x["stopover_time"]),
             "station": x["stationName"],
-            "stationTelecode": x["stationTelecode"]
+            "stationTelecode": fix_ky_telecode(x["stationTelecode"])
         })
         tctemp.add(x["dispTrainCode"])
         updateStationBelongInfo(
-            x["stationName"], BUREAU_CODE[x["station_corporation_code"].split("#")[0]], x["station_corporation_code"].split("#")[1])
+            fix_ky_telecode(x["stationTelecode"]), BUREAU_CODE[x["station_corporation_code"].split("#")[0]], x["station_corporation_code"].split("#")[1])
 
     inst.numberFull = list(sorted(list(tctemp)))
     inst.spend = int(crj["data"]["trainDetail"]["stopTime"][-1]["runningTime"])
@@ -236,7 +236,7 @@ def getTrainMainApp(inst):
 
     for x in inst.timetable:
         updatePassTrain(
-            x["station"], inst
+            fix_ky_telecode(x["stationTelecode"]), inst
         )
     
     LOGGER.debug(f"车次主信息 {inst.number}: 完成")
@@ -275,25 +275,30 @@ def getTrainRundays(inst):
 
 def getTrainKind(inst):
     '''获取车种（丐版时刻表）'''
-    r = get(
-        f"https://mobile.12306.cn/weixin/wxcore/queryByTrainNo?train_no={inst.code}&depart_date={datetime.datetime.strptime(inst._beginDay,'%Y%m%d').strftime('%Y-%m-%d')}")
-    d = r.json()
-    if len(d["data"]["data"]) == 0:
-        # 图纸车
-        LOGGER.debug(f"{inst.number} 无级别信息")
-        raise LookupError
-
-    if d["data"]["data"][0]["train_class_name"] in ["高速", "动车"]:
-        if d["data"]["data"][0]["station_train_code"].startswith("S"):
-            inst.type = "市域"
-        else:
-            inst.type = d["data"]["data"][0]["train_class_name"]
+    if inst.number.startswith("G"):
+        inst.type = "高速"
+    elif inst.number.startswith("D") or inst.number.startswith("C"):
+        inst.type = "动车"
     else:
-        if d["data"]["data"][0]["service_type"] == "0":
-            # 非空
-            inst.type = d["data"]["data"][0]["train_class_name"]
+        r = get(
+            f"https://mobile.12306.cn/weixin/wxcore/queryByTrainNo?train_no={inst.code}&depart_date={datetime.datetime.strptime(inst._beginDay,'%Y%m%d').strftime('%Y-%m-%d')}")
+        d = r.json()
+        if len(d["data"]["data"]) == 0:
+            # 图纸车
+            LOGGER.debug(f"{inst.number} 无级别信息")
+            raise LookupError
+
+        if d["data"]["data"][0]["train_class_name"] in ["高速", "动车"]:
+            if d["data"]["data"][0]["station_train_code"].startswith("S"):
+                inst.type = "市域"
+            else:
+                inst.type = d["data"]["data"][0]["train_class_name"]
         else:
-            inst.type = "新空调"+d["data"]["data"][0]["train_class_name"]
+            if d["data"]["data"][0]["service_type"] == "0":
+                # 非空
+                inst.type = d["data"]["data"][0]["train_class_name"]
+            else:
+                inst.type = "新空调"+d["data"]["data"][0]["train_class_name"]
     return inst
 
 
@@ -340,7 +345,7 @@ def getJiaolu(inst):
             f"https://mobile.12306.cn/wxxcx/wechat/bigScreen/queryTrainByStation?train_start_date={inst._beginDay}&train_station_code={station}")
         if not r.json()["status"]:
             # 小部分车站无法获得数据，应当按车次顺延到下一站
-            # LOGGER.debug(f"交路车站 {station_code} 遭到黑洞，顺延后续车站")
+            LOGGER.debug(f"交路车站 {station} 遭到黑洞，顺延后续车站")
             raise KeyError
         # LOGGER.debug(f"交路车站 {station_code} 获得成功")
 
@@ -354,7 +359,7 @@ def getJiaolu(inst):
                         continue
                     s = i.split("|")
                     je.append({
-                        "train_num": s[0].split("/")[0],
+                        "number": s[0].split("/")[0],
                         "from": [s[1], s[2]],
                         "to": [s[3], s[4]]
                     })
@@ -364,9 +369,9 @@ def getJiaolu(inst):
                     JIAOLU_APPLIED_CACHE.append(inst.number)
 
                 for s in je:
-                    if s["train_num"] != inst.number and not s["train_num"] in JIAOLU_APPLIED_CACHE:
+                    if s["number"] != inst.number and not s["number"] in JIAOLU_APPLIED_CACHE:
                         # LOGGER.debug(f"缓存 {s['train_num']} 交路")
-                        JIAOLU_SYNC[s["train_num"]] = je
+                        JIAOLU_SYNC[s["number"]] = je
                 # LOGGER.debug(f"录入 {inst.number} 交路")
 
         return inst
@@ -374,7 +379,7 @@ def getJiaolu(inst):
     _inst = inst
     for x in inst.timetable:
         try:
-            _inst = _jiaolu(inst, x["stationTelecode"])
+            _inst = _jiaolu(inst, restore_ky_telecode(x["stationTelecode"]))
             assert _inst.diagram != []
             break
         except:
