@@ -97,6 +97,8 @@ CAR_STYLE_CODE_MAP = {
     "CRH380AL_1066": "CRH380AL (一阶)",
     "CRH380AL_1099": "CRH380AL (二阶)",
     "CRH380D_554H": "CRH380D (旧型)",
+    "CRH380D_556": "CRH380D (统型)",
+    "CRH380D_556W": "CRH380D (统型)",
     "CRH2A_610": "CRH2A (旧型)",
     "CRH2A_613": "CRH2A (统型)",
     "CRH2B_1230H": "CRH2B (旧型)",
@@ -106,7 +108,8 @@ CAR_STYLE_CODE_MAP = {
     "CRH3C_556": "CRH3C (一阶)",
     "CRH3C_556H": "CRH3C (二阶)",
     "CRH5G_606": "CRH5G (旧型)",
-    "CRH5G_613": "CRH5G (技术提升)"
+    "CRH5G_613": "CRH5G (技术提升)",
+    "CJ1-0502_616": "CRH3A (城际型)"
     # CRH380A_556 + CRH380D = CRH380D 统
     # CRH2E_110 + CRH1E = CRH1E-NG
 }

@@ -65,10 +65,8 @@ def getDetailedFreightInfo(inst):
 
         if d["jbxxList"][6]["vlaue"] != "是":
             inst.type.remove("货")
-            if "客" not in inst.type:
-                inst.type.append("通")
         if d["jbxxList"][7]["vlaue"] == "是":
-            inst.type.append("高")
+            inst.type.append("快")
         if d["jbxxList"][8]["vlaue"] == "是":
             inst.type.append("行")
         LOGGER.debug(f"车站办理范围 {inst.name}: {' '.join(inst.type)}")
@@ -93,6 +91,8 @@ def getLevel(inst):
                  "f":"json"
              })
         inst.level = req.json()["features"][0]["attributes"]["GRADE"]
+        if inst.level == " ":
+            inst.level = "未知"
         LOGGER.debug(f"车站等级 {inst.name} : {inst.level}")
         return inst
     except Exception as e:
@@ -127,10 +127,14 @@ def stationTogether():
         try:
             x.telecode = fix_ky_telecode(x.telecode)  # 修复徐州东+雅周bug
             i = EXPORTER.getStation(x.telecode)
+            if i["name"] != x.name:
+                i["level"] = "未知"
             i["name"] = x.name
             i["pinyin"] = x.pinyin
             i["pinyinTriple"] = x.pinyinTriple
             i["type"].append("客")
+            if "通" in i["type"]:
+                i["type"].remove("通")
             EXPORTER.exportStationInfo(i)
         except:
             yield x
