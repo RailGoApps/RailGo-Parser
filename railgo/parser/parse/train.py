@@ -12,7 +12,6 @@ import json
 
 def getTrainList():
     '''获取全部车次列表 生成器'''
-    ts = time.time()
     for key in TRAIN_KIND_KEYWORDS:
         req = get(
             f"https://mobile.12306.cn/weixin/wxcore/queryTrain?ticket_no={key}&depart_date={datetime.datetime.now().strftime('%Y%m%d')}")
@@ -92,7 +91,8 @@ def getTrainMain(inst):
                     "depart": x["startTime"][:2]+":"+x["startTime"][2:],
                     "stopTime": int(x["stopover_time"]),
                     "station": x["stationName"],
-                    "stationTelecode": fix_ky_telecode(x["stationTelecode"])
+                    "stationTelecode": fix_ky_telecode(x["stationTelecode"]),
+                    "runTime": int(x["runningTime"])
                 })
                 tctemp.add(x["stationTrainCode"])
                 try:
@@ -196,7 +196,8 @@ def getTrainMainApp(inst):
             "depart": x["startTime"][:2]+":"+x["startTime"][2:],
             "stopTime": int(x["stopover_time"]),
             "station": x["stationName"],
-            "stationTelecode": fix_ky_telecode(x["stationTelecode"])
+            "stationTelecode": fix_ky_telecode(x["stationTelecode"]),
+            "runTime": int(x["runningTime"])
         })
         tctemp.add(x["dispTrainCode"])
         updateStationBelongInfo(
@@ -307,10 +308,12 @@ def getTrainKind(inst):
                 inst.type = d["data"]["data"][0]["train_class_name"]
             else:
                 inst.type = "新空调"+d["data"]["data"][0]["train_class_name"]
+    LOGGER.debug(f"车次车种 {inst.number}: 完成")
     return inst
 
 
 def getTrainDistanceCRGT(inst):
+    raise DeprecationWarning
     '''国铁吉讯：获取列车运行里程'''
     r = post("https://tripapi.ccrgt.com/crgt/trip-server-app/wx/train/getTrainInfoNode", json={
         "params": {"trainNumber": inst.number, "date": datetime.datetime.strptime(inst._beginDay, "%Y%m%d").strftime("%Y-%m-%d")},
@@ -338,69 +341,52 @@ def getTrainDistanceCRGT(inst):
     return inst
 
 
-def getJiaolu(inst):
-    '''获取官方图定交路 （部分普速缺失）'''
-    def _jiaolu(inst, station):
-        if inst.number in JIAOLU_SYNC:
-            # 前序车次已同步
-            LOGGER.info(f"{inst.number} 交路命中缓存")
-            inst.diagram = JIAOLU_SYNC[inst.number]
-            del JIAOLU_SYNC[inst.number]
-            JIAOLU_APPLIED_CACHE.append(inst.number)
-            return inst
+def getStopDistanceAndDiagram(inst):
+    '''获取里程及交路'''
+    try:
+        for si in range(len(inst.timetable)):
+            stop = inst.timetable[si]
+            t = restore_ky_telecode(stop["stationTelecode"])
+            if (inst._beginDay, t) not in STATION_MAP_CACHE:
+                res = {}
+                r = post(
+                    f"https://mobile.12306.cn/wxxcx/wechat/bigScreen/queryTrainByStation?train_start_date={inst._beginDay}&train_station_code={t}")
+                if "data" in r.json():
+                    d = r.json()["data"]
+                    for x in d:
+                        # 处理交路
+                        dg_raw = x["jiaolu_train"]
+                        if dg_raw != "":
+                            dg = []
+                            for i in dg_raw.split("#"):
+                                s = i.split("|")
+                                if s != [""]:
+                                    dg.append({
+                                        "number": s[0].split("/")[0],
+                                        "from": [s[1], s[2]],
+                                        "to": [s[3], s[4]]
+                                    })
+                            for i in dg:
+                                STATION_DIAGRAM_CACHE[i["number"]] = i
+                        # 处理距离和详细车种缓存
+                        res[x["train_no"]] = [
+                            int(x["distance"]), x["train_type_name"]]
+                STATION_MAP_CACHE[(inst._beginDay, t)] = res
+                LOGGER.debug(f"缓存车站车次: {inst._beginDay} {t}")
 
-        r = post(
-            f"https://mobile.12306.cn/wxxcx/wechat/bigScreen/queryTrainByStation?train_start_date={inst._beginDay}&train_station_code={station}")
-        if not r.json()["status"]:
-            # 小部分车站无法获得数据，应当按车次顺延到下一站
-            LOGGER.debug(f"交路车站 {station} 遭到黑洞，顺延后续车站")
-            raise KeyError
-        # LOGGER.debug(f"交路车站 {station_code} 获得成功")
+            inf = STATION_MAP_CACHE[(inst._beginDay, t)]
+            stop["distance"] = inf[inst.code][0]
+            if si != 0:
+                stop["speed"] = float(stop["distance"]) / (inst.timetable[si]["runTime"] - inst.timetable[si-1]["runTime"])
 
-        for x in r.json()["data"]:
-            if x["jiaolu_train"] != "":
-                # 有交路
-                jl = x["jiaolu_train"].split("#")
-                je = []
-                for i in jl:
-                    if len(i) == 0:
-                        continue
-                    s = i.split("|")
-                    je.append({
-                        "number": s[0].split("/")[0],
-                        "from": [s[1], s[2]],
-                        "to": [s[3], s[4]]
-                    })
+            if inst.diagramType == "":
+                inst.diagramType = inf[inst.code][1]
 
-                if inst.number in x["jiaolu_train"]:
-                    inst.diagram = je
-                    JIAOLU_APPLIED_CACHE.append(inst.number)
-
-                for s in je:
-                    if s["number"] != inst.number and not s["number"] in JIAOLU_APPLIED_CACHE:
-                        # LOGGER.debug(f"缓存 {s['train_num']} 交路")
-                        JIAOLU_SYNC[s["number"]] = je
-                # LOGGER.debug(f"录入 {inst.number} 交路")
-
-        return inst
-
-    _inst = inst
-    for x in inst.timetable:
-        try:
-            _inst = _jiaolu(inst, restore_ky_telecode(x["stationTelecode"]))
-            assert _inst.diagram != []
-            break
-        except:
-            continue
-    LOGGER.info(f"{inst.number} 交路获取成功")
-
-    return _inst
-
-
-def afterFixJiaolu(inst):
-    if inst["number"] in JIAOLU_SYNC:
-        inst["diagram"] = JIAOLU_SYNC[inst["number"]]
-        del JIAOLU_SYNC[inst["number"]]
-    else:
-        LOGGER.debug(f"{inst['number']} 无交路")
+            if inst.diagram == []:
+                if inst.code in STATION_DIAGRAM_CACHE:
+                    inst.diagram = STATION_DIAGRAM_CACHE.pop(inst.code)
+            inst.timetable[si] = stop
+    except Exception as e:
+        LOGGER.exception(e)
+    LOGGER.debug(f"车次交路里程 {inst.number}: 完成")
     return inst

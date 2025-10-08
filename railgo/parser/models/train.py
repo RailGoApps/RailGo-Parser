@@ -5,6 +5,7 @@ class TrainModel(object):
     numberKind = ""
     code = ""
     type = ""
+    diagramType = ""
 
     bureau = ""
     bureauName = ""
@@ -18,7 +19,6 @@ class TrainModel(object):
     rundays = []
     route = []
 
-    isTemp = False # 临客flag 因为交路按缓存跑的比较麻烦 先放着空
     isFuxing = False
 
     _beginDay = ""
@@ -32,6 +32,7 @@ class TrainModel(object):
             "bureau": self.bureau,
             "bureauName": self.bureauName,
             "type": self.type,
+            "diagramType": self.diagramType, 
             "diagram": self.diagram,
             "rundays": self.rundays,
             "route": self.route,
@@ -40,7 +41,6 @@ class TrainModel(object):
             "car": self.car,
             "timetable": self.timetable,
             "spend": self.spend,
-            "isTemp": self.isTemp,
             "isFuxing": self.isFuxing
         }
 

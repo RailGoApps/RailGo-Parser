@@ -81,25 +81,12 @@ def init_stations():
         LOGGER.exception(e)
 
 
-def init_jiaolu():
-    try:
-        LOGGER.info(f"{len(JIAOLU_SYNC)} 个缓存交路没有消化")
-        for x in EXPORTER.trainInfoList():
-            if x["diagram"] == []:
-                EXPORTER.exportTrainInfo(afterFixJiaolu(x))
-        LOGGER.info(f"还剩 {len(JIAOLU_SYNC)} 个缓存交路")
-    except Exception as e:
-        LOGGER.exception(e)
-
-
 def launchMainPipe():
     ts = time.time()
     init_stations()
-    LOGGER.info("=======车站信息爬取完成=======")
     init_train()
     PIPE_POOL.shutdown(wait=True)
-    init_jiaolu()
-    LOGGER.info("=======车次信息爬取完成=======")
+    LOGGER.info("=======爬取完成=======")
     EXPORTER.export()
     EXPORTER.close()
     LOGGER.info(f"本批耗时：{time.time()-ts}s")

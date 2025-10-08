@@ -88,6 +88,7 @@ CAR_STYLE_CODE_MAP = {
     "CR200J3-C_1012": "CR200J (智能型长编)", # 占位
     "CR200J3-C-676": "CR200J (智能型短编)", # 占位
     "CR200J_1012": "CR200J (智能型长编)", # 占位
+    "CR400BF-C_563": "CR400BF-C “瑞雪迎春”",
     "CRH1_646": "CRH1A (200)",
     "CRH1_668": "CRH1A (200)",
     "CRH1_649": "CRH1A (250)",
@@ -126,8 +127,8 @@ STATION_UNIQUE_TELECODE_EXCEPT = ["UUH"] # 特判
 STATION_XLS_EXCEPT = ["花所", "八所"]  # 特判
 
 # 交路缓存
-JIAOLU_SYNC = {}
-JIAOLU_APPLIED_CACHE = []
+STATION_MAP_CACHE = {}
+STATION_DIAGRAM_CACHE = {}
 
 # 队列
 PIPE_POOL = ThreadPoolExecutor(20)
@@ -136,8 +137,7 @@ PIPE_TRAIN_PROCESSORS = [
     "getTrainMain",
     "getTrainMap",
     "getTrainKind",
-    "getTrainDistanceCRGT",
-    "getJiaolu"
+    "getStopDistanceAndDiagram"
 ]
 PIPE_STATION_PROCESSORS = [
     "getDetailedFreightInfo",

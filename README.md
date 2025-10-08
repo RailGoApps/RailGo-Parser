@@ -23,23 +23,16 @@ RailGo 后端爬虫主代码。
 启动核心: `python main.py`
 
 ### 存储
-运行后会自动在`export`目录生成`railgo.json`数据文件，其中:
-- `trains` 列车时刻表核心数据，包括每列车的信息。
-- `station` 车站信息辅助数据。
-- [WIP] ~~`map` 铁路线路辅助数据。~~
+本软件使用 MongoDB 作为中间存储，但默认导出为适用 `RailGo` 软件的 SQLite 数据格式，存储在`./export/railgo.sqlite`下。
 
-其中，`_index_`开头字段是方便APP查询用，主键为`trains`列车车次号，`station`车站电报码。
-
-可参照`railgo.parser.db.MongoJsonExporter`自己写接口以导入到MySQL等数据库中。
-
-日志默认打印到控制台且存储在`latest.log`中。
+您可以参考 `railgo.parser.db.mongo_json` 结构，对接到您自己的存储方式下。
 
 ### FaQ
 - 信息不全
 
     请保证网络畅通，否则列车列表可能出现**成片**缺失。
 
-    > 本程序非常垃圾，几乎没有错误处理，请保证一切条件正常再报issue！
+    > 本程序设计略为潦草，几乎没有错误处理，请保证一切条件正常再报issue！
 
 - `ConnectionError: mPaaS Request Failed: XXX`
   
@@ -55,9 +48,9 @@ RailGo 后端爬虫主代码。
 
 ### 数据来源
 - 12306 ( 核心数据 )
-- 国铁吉讯 ( 核心数据 )
-- 95306 ( 车站补充信息 )
-- ~~昆铁货运 ( 车站补充信息 )~~
+- ~~国铁吉讯 ( 核心数据 )~~ 因里程准确性极差已被移除。
+- 95306 ( 核心数据 )
+- ~~昆铁货运 ( 车站补充信息 )~~ 因车站代码信息时效性极差已被移除。
   
 本程序采集的所有数据都是公开数据。
 
@@ -65,12 +58,12 @@ RailGo 后端爬虫主代码。
 欢迎PR。
 
 核心开发人员：
-- ChenMo 
-- TKP30
-- mstouk57g
+- @zlk-sys 
+- @TKP30
+- @mstouk57g
 
 其余提供帮助的人士：
-- XieXiLin
+- @XieXiLin
 
 ### 参考
 - http://www.ldbb.cn/news/7281.html

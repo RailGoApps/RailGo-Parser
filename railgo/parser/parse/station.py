@@ -26,6 +26,8 @@ def getKYFWList():
             loc = jionlp.parse_location(r[7])
             i.province = loc["province"]
             i.city = loc["city"]
+            if i.city == None:
+                i.city = loc["county"] # 省直辖县
         else:  # 外国
             i.province = r[9]
             i.city = r[7].replace(i.province, "")
@@ -62,9 +64,12 @@ def getDetailedFreightInfo(inst):
         loc = jionlp.parse_location(d["jbxxList"][3]["vlaue"])
         inst.province = loc["province"]
         inst.city = loc["city"]
+        if inst.city == None:
+            inst.city = loc["county"] # 省直辖县
 
         if d["jbxxList"][6]["vlaue"] != "是":
             inst.type.remove("货")
+            inst.type.append("通")
         if d["jbxxList"][7]["vlaue"] == "是":
             inst.type.append("快")
         if d["jbxxList"][8]["vlaue"] == "是":
