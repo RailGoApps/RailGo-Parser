@@ -59,11 +59,9 @@ def getTrainMain(inst):
     crj = req.json()
 
     if crj["data"] == {}:
-        # 只有在WXXCX查不到信息时再跳转APP版查询
-        # 减少加解密开支和被炸可能
-        return getTrainMainApp(inst)
+        return getTrainMainDowngrade(inst)
     elif len(crj["data"]["trainDetail"]) == 0:
-        return getTrainMainApp(inst)
+        return getTrainMainDowngrade(inst)
     else:
         try:
             inst.numberKind = "" if inst.number[0].isdigit(
@@ -101,6 +99,9 @@ def getTrainMain(inst):
                 except:
                     # 暂时忽略无信息的车站段
                     pass
+                updatePassTrain(
+                    fix_ky_telecode(x["stationTelecode"]), inst
+                )
             inst.spend = int(crj["data"]["trainDetail"]
                              ["stopTime"][-1]["runningTime"])
             inst.numberFull = list(sorted(list(tctemp)))
@@ -142,113 +143,62 @@ def getTrainMain(inst):
             except:
                 pass
         except Exception as e:
-            return getTrainMainApp(inst)
+            return getTrainMainDowngrade(inst)
 
-    for x in inst.timetable:
-        updatePassTrain(
-            fix_ky_telecode(x["stationTelecode"]), inst
-        )
     LOGGER.debug(f"车次主信息 {inst.number}: 完成")
     return inst
 
 
-def getTrainMainApp(inst):
-    '''MpaaS API: getTrainMain备份平替'''
-    LOGGER.debug(f"{inst.number} 进入MpaaS备份信息")
+def getTrainMainDowngrade(inst):
+    '''涉及停靠不上网售票车站车次时 wxxcx查不到 舍弃部分信息分类查询'''
+    LOGGER.debug(f"{inst.number} 降级查询")
     if len(inst.rundays) == 0:
-        # 三折叠，怎么折，都停运
-        raise LookupError
-
-    r = postM("trainTimeTable.queryTrainAllInfo",
-              {
-                  "fromStation": "",
-                  "toStation": "",
-                  "trainCode": inst.number,
-                  "trainType": "",
-                  "trainDate": inst._beginDay
-              }
-              )
-    try:
-        crj = json.loads(r["trainData"])
-    except Exception as e:
-        # ASE003
-        LOGGER.exception(e)
-        LOGGER.debug(f"{inst.number} 时刻表缺失")
         raise LookupError
 
     inst.numberKind = "" if inst.number[0].isdigit() else inst.number[0]
-    inst.runner = crj["stopTime"][0]["jiaolu_corporation_code"]
-    inst.carOwner = crj["stopTime"][0]["jiaolu_dept_train"]
-    inst.car = crj["stopTime"][0]["jiaolu_train_style"].replace("重联", " 重联")
-    inst.bureau = crj["stopTime"][0]["corporation_code"][0]
-    inst.bureauName = BUREAU_SHORT_CODE.get(inst.bureau, "未知")
-    try:
-        inst.car = crj["trainsetTypeInfo"]["trainsetTypeName"]
-    except:
-        pass
-    inst.timetable = []
-    tctemp = set()
-    for x in crj["stopTime"]:
+
+    r = get(
+        f"https://kyfw.12306.cn/otn/queryTrainInfo/query?leftTicketDTO.train_no={inst.code}&leftTicketDTO.train_date={datetime.datetime.strptime(inst._beginDay,'%Y%m%d').strftime('%Y-%m-%d')}")
+    d = r.json()
+    for x in d["data"]["data"]:
         inst.timetable.append({
-            "trainCode": x["dispTrainCode"],
-            "day": int(x["dayDifference"]),
-            "arrive": x["arriveTime"][:2]+":"+x["arriveTime"][2:],
-            "depart": x["startTime"][:2]+":"+x["startTime"][2:],
-            "stopTime": int(x["stopover_time"]),
-            "station": x["stationName"],
-            "stationTelecode": fix_ky_telecode(x["stationTelecode"]),
-            "runTime": int(x["runningTime"])
+            "trainCode": x["station_train_code"],
+            "day": int(x["arrive_day_diff"]),
+            "arrive": x["arrive_time"],
+            "depart": x["start_time"],
+            "station": x["station_name"],
+            "stationTelecode": x["station_telecode"],
+            "stopTime": int(x["stopover_time"].replace("分钟", "") if "分钟" in "stopover_time" else 0),
+            "runTime": int(x["running_time"].split(":")[0])*60 + int(x["running_time"].split(":")[1])
         })
-        tctemp.add(x["dispTrainCode"])
-        updateStationBelongInfo(
-            fix_ky_telecode(x["stationTelecode"]), BUREAU_CODE[x["station_corporation_code"].split("#")[0]], x["station_corporation_code"].split("#")[1])
-
-    inst.numberFull = list(sorted(list(tctemp)))
-    inst.spend = int(crj["data"]["trainDetail"]["stopTime"][-1]["runningTime"])
-    try:
-        style = crj["data"]["trainDetail"]["stopTime"][0]["train_style"]
-        if style in CAR_STYLE_CODE_MAP:
-            if "CRH380D" in inst.car and style == "CRH380A_556":
-                if "重联" in inst.car:
-                    inst.car = "CRH380D (统型) 重联"
-                else:
-                    inst.car = "CRH380D (统型)"
-            elif "CRH380B" in inst.car and style == "CRH380A_556":
-                if "重联" in inst.car:
-                    inst.car = "CRH380B 重联"
-                else:
-                    inst.car = "CRH380B"
-            elif "CRH1E" in inst.car and style == "CRH2E_110":
-                if "重联" in inst.car:
-                    inst.car = "CRH1E-NG 重联"
-                else:
-                    inst.car = "CRH1E-NG"
-            elif "CR200J" in inst.car and "-" in inst.car:
-                if "重联" in inst.car:
-                    if style == "CR200J3-C-676" or style == "CR200J":
-                        inst.car = inst.car.replace(" 重联", "")
-                        inst.car += "(短编) 重联"
-                    elif style == "CR200J_1012" or style == "CR200J_16" or style == "CR200J3-C_1012":
-                        inst.car = inst.car.replace(" 重联", "")
-                        inst.car += "(长编) 重联"
-                else:
-                    if style == "CR200J3-C-676" or style == "CR200J":
-                        inst.car += "(短编)"
-                    elif style == "CR200J_1012" or style == "CR200J_16" or style == "CR200J3-C_1012":
-                        inst.car += "(长编)"
-            elif "重联" in inst.car:
-                inst.car = CAR_STYLE_CODE_MAP[style]+" 重联"
-            else:
-                inst.car = CAR_STYLE_CODE_MAP[style]
-    except:
-        pass
-
-    for x in inst.timetable:
         updatePassTrain(
             fix_ky_telecode(x["stationTelecode"]), inst
         )
+    if inst.number.startswith("G"):
+        inst.type = "高速"
+    elif inst.number.startswith("D") or inst.number.startswith("C"):
+        inst.type = "动车"
+    else:
+        if d["data"]["data"][0]["train_class_name"] in ["高速", "动车"]:
+            if d["data"]["data"][0]["station_train_code"].startswith("S"):
+                inst.type = "市域"
+            else:
+                inst.type = d["data"]["data"][0]["train_class_name"]
+        else:
+            if d["data"]["data"][0]["service_type"] == "0":
+                # 非空
+                inst.type = d["data"]["data"][0]["train_class_name"]
+            else:
+                inst.type = "新空调" + d["data"]["data"][0]["train_class_name"]
 
-    LOGGER.debug(f"车次主信息 {inst.number}: 完成")
+    r = post("https://mobile.12306.cn/wxxcx/wechat/bigScreen/queryTrainBureau", data={
+        "queryDate": inst._beginDay,
+        "trainCode": inst.number
+    })
+    d = r.json()
+    inst.bureau = d["data"]["bureau_code"]
+    inst.bureauName = BUREAU_SHORT_CODE.get(inst.bureau, "未知")
+
     return inst
 
 
@@ -377,7 +327,8 @@ def getStopDistanceAndDiagram(inst):
             inf = STATION_MAP_CACHE[(inst._beginDay, t)]
             stop["distance"] = inf[inst.code][0]
             if si != 0:
-                stop["speed"] = float(stop["distance"]) / (inst.timetable[si]["runTime"] - inst.timetable[si-1]["runTime"])
+                stop["speed"] = float(
+                    stop["distance"]) / (inst.timetable[si]["runTime"] - inst.timetable[si-1]["runTime"])
 
             if inst.diagramType == "":
                 inst.diagramType = inf[inst.code][1]
