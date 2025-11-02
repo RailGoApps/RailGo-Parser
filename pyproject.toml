@@ -27,7 +27,9 @@ dependencies = [
     "pymongo",
     "retry",
     "pypinyin",
-    "jionlp"
+    "jionlp",
+    "tqdm",
+    "tqdm_logging_wrapper"
 ]
 
 [project.urls]

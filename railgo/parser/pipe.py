@@ -5,6 +5,9 @@ from railgo.parser.parse.train import *
 from railgo.parser.parse.station import *
 from functools import wraps
 import time
+import tqdm
+import tqdm_logging_wrapper as tqdl
+import sys
 
 
 def task(f):
@@ -15,7 +18,7 @@ def task(f):
 
 
 @task
-def train(inst):
+def train(inst, pbar):
     LOGGER.info(f"{inst.number} 车次接收")
     for x in PIPE_TRAIN_PROCESSORS:
         LOGGER.debug(f"{inst.number} 执行抓取 {x}")
@@ -36,11 +39,12 @@ def train(inst):
         except Exception as e:
             LOGGER.exception(e)
             LOGGER.critical(f"车次 {inst.number} 存储错误")
+    pbar.update(1)
     time.sleep(0.02)
 
 
 @task
-def station(inst):
+def station(inst, pbar):
     LOGGER.info(f"{inst.name}站接收")
 
     for x in PIPE_STATION_PROCESSORS:
@@ -62,21 +66,30 @@ def station(inst):
         except Exception as e:
             LOGGER.exception(e)
             LOGGER.critical(f"车站 {inst.name} 存储错误")
+    pbar.update(1)
     time.sleep(0.02)
 
 
 def init_train():
     try:
-        for x in getTrainList():
-            train(x)
+        pbar = tqdm.tqdm(total=0, desc="遍历列车", unit="次",
+                      position=0, file=sys.stdout)
+        with tqdl.wrap_logging_for_tqdm(pbar, logger=LOGGER):
+            for x in getTrainList():
+                pbar.total += 1
+                train(x, pbar)
     except Exception as e:
         LOGGER.exception(e)
 
 
 def init_stations():
     try:
-        for x in stationTogether():
-            station(x)
+        pbar = tqdm.tqdm(total=0, desc="遍历车站", unit="个",
+                      position=0, file=sys.stdout)
+        with tqdl.wrap_logging_for_tqdm(pbar, logger=LOGGER):
+            for x in stationTogether():
+                pbar.total += 1
+                station(x, pbar)
     except Exception as e:
         LOGGER.exception(e)
 

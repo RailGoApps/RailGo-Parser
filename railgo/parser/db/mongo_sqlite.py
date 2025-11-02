@@ -14,21 +14,27 @@ class MongoSQLiteExporter(MongoJsonExporter):
         cursor.execute("DELETE FROM stations")
         db.commit()
         db.close()
+
     def export(self):
         db = sqlite3.connect(self.export_location)
         cursor = db.cursor()
         for d in self.trainInfoList():
             try:
                 cursor.execute("INSERT INTO trains (code, number, numberFull, numberKind, bureau, bureauName, type, diagramType, runner, car, carOwner, diagram, timetable, spend, rundays, route, isFuxing) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                            (d["code"], d["number"], json.dumps(d["numberFull"], indent=None, separators=(",", ":"), ensure_ascii=False), d["numberKind"], d["bureau"], d["bureauName"], d["type"], d["diagramType"], d["runner"], d["car"], d["carOwner"], json.dumps(d["diagram"], indent=None, separators=(",", ":"), ensure_ascii=False), json.dumps(d["timetable"], indent=None, separators=(",", ":"), ensure_ascii=False), int(d["spend"]), json.dumps(d["rundays"], indent=None, separators=(",", ":"), ensure_ascii=False), json.dumps(d["route"], indent=None, separators=(",", ":"), ensure_ascii=False), int(d["isTemp"]), int(d["isFuxing"])))
+                            (d["code"], d["number"], self._serializeJSON(d["numberFull"]), d["numberKind"], d["bureau"], d["bureauName"], d["type"], d["diagramType"], d["runner"], d["car"], d["carOwner"], self._serializeJSON(d["diagram"]), self._serializeJSON(d["timetable"]), int(d["spend"]), self._serializeJSON(d["rundays"]), self._serializeJSON(d["route"]), int(d["isFuxing"])))
                 db.commit()
-            except:
+            except Exception as e:
+                print(e)
                 db.rollback()
         for d in self.stationInfoList():
             try:
                 cursor.execute("INSERT INTO stations (telecode, pinyin, pinyinTriple, tmism, name, level, bureau, belong, province, city, lines, type, trainList) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                            (d["telecode"], d["pinyin"], d["pinyinTriple"], d["tmism"], d["name"], d["level"], d["bureau"], d["belong"], d["province"], d["city"], json.dumps(d["lines"], indent=None, separators=(",", ":"), ensure_ascii=False), json.dumps(d["type"], indent=None, separators=(",", ":"), ensure_ascii=False), json.dumps(d["trainList"], indent=None, separators=(",", ":"), ensure_ascii=False)))
+                            (d["telecode"], d["pinyin"], d["pinyinTriple"], d["tmism"], d["name"], d["level"], d["bureau"], d["belong"], d["province"], d["city"], self._serializeJSON(d["lines"]), self._serializeJSON(d["type"]), self._serializeJSON(d["trainList"])))
                 db.commit()
-            except:
+            except Exception as e:
+                print(e)
                 db.rollback()
-        db.close()        
+        db.close()
+
+    def _serializeJSON(self, obj):
+        return json.dumps(obj, indent=None, separators=(",", ":"), ensure_ascii=False)

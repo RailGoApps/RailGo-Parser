@@ -5,9 +5,11 @@ from railgo.parser.utils.datafixer import *
 from railgo.config import *
 
 import jionlp
+import time
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 import base64
+
 
 def getKYFWList():
     '''12306车站汇总'''
@@ -27,7 +29,7 @@ def getKYFWList():
             i.province = loc["province"]
             i.city = loc["city"]
             if i.city == None:
-                i.city = loc["county"] # 省直辖县
+                i.city = loc["county"]  # 省直辖县
         else:  # 外国
             i.province = r[9]
             i.city = r[7].replace(i.province, "")
@@ -52,12 +54,14 @@ def getHYFWList():
         i.pinyin, i.pinyinTriple = stationPinyin(x["czmc"], x["czpym"])
         yield i
 
+
 def getDetailedFreightInfo(inst):
     if "货" not in inst.type:
         LOGGER.debug(f"车站办理范围 {inst.name}: 客")
         return inst
-    
-    req = post("https://ec.95306.cn/api/zx/czmpxx/queryByTimism", json={"fztmism":str(inst.tmism)})
+
+    req = post("https://ec.95306.cn/api/zx/czmpxx/queryByTimism",
+               json={"fztmism": str(inst.tmism)})
     try:
         d = req.json()["data"]
 
@@ -65,7 +69,7 @@ def getDetailedFreightInfo(inst):
         inst.province = loc["province"]
         inst.city = loc["city"]
         if inst.city == None:
-            inst.city = loc["county"] # 省直辖县
+            inst.city = loc["county"]  # 省直辖县
 
         if d["jbxxList"][6]["vlaue"] != "是":
             inst.type.remove("货")
@@ -82,29 +86,32 @@ def getDetailedFreightInfo(inst):
         LOGGER.debug(f"车站附加信息 {inst.name} 获取失败")
         return inst
 
+
 def getLevel(inst):
     if "货" not in inst.type and "通" not in inst.type:
         return inst
     try:
-        buffer = base64.b64encode(AES.new(HYFW_GIS_KEY, AES.MODE_CBC, HYFW_GIS_IV).encrypt(pad(f'"{str(inst.tmism)}"'.encode("utf-8"), 16))).decode("utf-8")
+        buffer = base64.b64encode(AES.new(HYFW_GIS_KEY, AES.MODE_CBC, HYFW_GIS_IV).encrypt(
+            pad(f'"{str(inst.tmism)}"'.encode("utf-8"), 16))).decode("utf-8")
         req = post("https://ec.95306.cn/gisServerIPMapServer/OneMapServer/rest/services/HY_CZ_ZTT_JM/Transfer/1/query",
-             headers={
-                 "Referer": "https://ec.95306.cn/gis/inputSearchStationHyzy.html"
-             },data={
-                 "where": f"TMISM='{buffer}'",
-                 "OutFields":"*",
-                 "f":"json"
-             })
+                   headers={
+                       "Referer": "https://ec.95306.cn/gis/inputSearchStationHyzy.html"
+                   }, data={
+                       "where": f"TMISM='{buffer}'",
+                       "OutFields": "*",
+                       "f": "json"
+                   })
         inst.level = req.json()["features"][0]["attributes"]["GRADE"]
-        if inst.level == " ":
+        if inst.level == " " or inst.level == None or inst.level == "":
             inst.level = "未知"
         LOGGER.debug(f"车站等级 {inst.name} : {inst.level}")
+        time.sleep(0.05)
         return inst
     except Exception as e:
         LOGGER.exception(e)
         LOGGER.debug(f"车站等级 {inst.name} 获取失败")
         return inst
-    
+
 
 def updateStationBelongInfo(station, bureau, belong):
     '''从列车时刻表更新车站所属路局及车务段'''

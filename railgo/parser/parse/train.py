@@ -158,7 +158,7 @@ def getTrainMainDowngrade(inst):
     inst.numberKind = "" if inst.number[0].isdigit() else inst.number[0]
 
     r = get(
-        f"https://kyfw.12306.cn/otn/queryTrainInfo/query?leftTicketDTO.train_no={inst.code}&leftTicketDTO.train_date={datetime.datetime.strptime(inst._beginDay,'%Y%m%d').strftime('%Y-%m-%d')}")
+        f"https://kyfw.12306.cn/otn/queryTrainInfo/query?leftTicketDTO.train_no={inst.code}&leftTicketDTO.train_date={datetime.datetime.strptime(inst._beginDay,'%Y%m%d').strftime('%Y-%m-%d')}&rand_code=")
     d = r.json()
     for x in d["data"]["data"]:
         inst.timetable.append({
@@ -297,12 +297,15 @@ def getStopDistanceAndDiagram(inst):
         for si in range(len(inst.timetable)):
             stop = inst.timetable[si]
             t = restore_ky_telecode(stop["stationTelecode"])
-            if (inst._beginDay, t) not in STATION_MAP_CACHE:
+            day = (datetime.datetime.strptime(inst._beginDay,"%Y%m%d")+datetime.timedelta(days=stop["day"])).strftime("%Y%m%d")
+            if (day+t) not in STATION_MAP_CACHE:
                 res = {}
                 r = post(
-                    f"https://mobile.12306.cn/wxxcx/wechat/bigScreen/queryTrainByStation?train_start_date={inst._beginDay}&train_station_code={t}")
+                    f"https://mobile.12306.cn/wxxcx/wechat/bigScreen/queryTrainByStation?train_start_date={day}&train_station_code={t}")
                 if "data" in r.json():
                     d = r.json()["data"]
+                    if len(d) == 0: # 偶发拿不到数据
+                        return getStopDistanceAndDiagram(inst)
                     for x in d:
                         # 处理交路
                         dg_raw = x["jiaolu_train"]
@@ -321,10 +324,10 @@ def getStopDistanceAndDiagram(inst):
                         # 处理距离和详细车种缓存
                         res[x["train_no"]] = [
                             int(x["distance"]), x["train_type_name"]]
-                STATION_MAP_CACHE[(inst._beginDay, t)] = res
-                LOGGER.debug(f"缓存车站车次: {inst._beginDay} {t}")
+                STATION_MAP_CACHE[day+t] = res
+                LOGGER.debug(f"缓存车站车次: {day} {t}")
 
-            inf = STATION_MAP_CACHE[(inst._beginDay, t)]
+            inf = STATION_MAP_CACHE[day+t]
             stop["distance"] = inf[inst.code][0]
             if si != 0:
                 stop["speed"] = float(

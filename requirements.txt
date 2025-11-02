@@ -6,3 +6,5 @@ pymongo
 retry
 pypinyin
 jionlp
+tqdm
+tqdm_logging_wrapper
