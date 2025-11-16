@@ -9,6 +9,7 @@ import time
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 import base64
+import re
 
 
 def getKYFWList():
@@ -38,20 +39,20 @@ def getKYFWList():
 
 def getHYFWList():
     '''95306车站列表'''
-    req = post("https://ec.95306.cn/api/yjgl/zd/gxkcx/listStaByPara",
-               json={"code": "", "ljdm": ""})
+    req = post("https://ec.95306.cn/api/zd/vizm/queryZmBrief",
+               json={"q": "", "limit": 99999}, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0"})
     for x in req.json()["data"]:
         i = StationModel()
         i.type = ["货"]
-        i.name = x["czmc"]
-        i.telecode = x["czdbm"]
-        i.tmism = x["cztmis"]
-        # if "境" in x["czmc"]:
-        #    i.bureau = "边境口岸"
-        # else:
-        #    i.bureau = BUREAU_SGCODE[x["ljjc"]]
+        i.name = x["hzzm"]
+        i.telecode = x["dbm"]
+        i.tmism = x["tmism"]
         i.bureau = BUREAU_SGCODE[x["ljjc"]]
-        i.pinyin, i.pinyinTriple = stationPinyin(x["czmc"], x["czpym"])
+        i.pinyin, i.pinyinTriple = stationPinyin(x["hzzm"], x["pym"])
+        if isinstance(x["hyzdmc"], str):
+            if x["hyzdmc"].endswith("站") or x["hyzdmc"].endswith("车务段"):
+                i.belong = re.sub(
+                    "中国铁路.+公司", "", x["hyzdmc"]).replace("车站", "站")
         yield i
 
 
@@ -61,7 +62,7 @@ def getDetailedFreightInfo(inst):
         return inst
 
     req = post("https://ec.95306.cn/api/zx/czmpxx/queryByTimism",
-               json={"fztmism": str(inst.tmism)})
+               json={"fztmism": str(inst.tmism)}, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0", "Cookies": "SESSION=NjE4M2M0ZWEtMTkzZi00MzY2LWEwNWMtZGM4ZWRiZTQ1NzQ4; __jsluid_s=4eb7daa0ece1d593195f37a77cd3f8d2"})
     try:
         d = req.json()["data"]
 
@@ -95,7 +96,8 @@ def getLevel(inst):
             pad(f'"{str(inst.tmism)}"'.encode("utf-8"), 16))).decode("utf-8")
         req = post("https://ec.95306.cn/gisServerIPMapServer/OneMapServer/rest/services/HY_CZ_ZTT_JM/Transfer/1/query",
                    headers={
-                       "Referer": "https://ec.95306.cn/gis/inputSearchStationHyzy.html"
+                       "Referer": "https://ec.95306.cn/gis/inputSearchStationHyzy.html",
+                       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0"
                    }, data={
                        "where": f"TMISM='{buffer}'",
                        "OutFields": "*",

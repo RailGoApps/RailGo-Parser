@@ -178,18 +178,17 @@ def getTrainMainDowngrade(inst):
         inst.type = "高速"
     elif inst.number.startswith("D") or inst.number.startswith("C"):
         inst.type = "动车"
+    elif inst.number.startswith("S"):
+        inst.type = "市域"
     else:
         if d["data"]["data"][0]["train_class_name"] in ["高速", "动车"]:
-            if d["data"]["data"][0]["station_train_code"].startswith("S"):
-                inst.type = "市域"
-            else:
-                inst.type = d["data"]["data"][0]["train_class_name"]
+            inst.type = d["data"]["data"][0]["train_class_name"]
         else:
             if d["data"]["data"][0]["service_type"] == "0":
                 # 非空
-                inst.type = d["data"]["data"][0]["train_class_name"]
+                inst.type = d["data"]["data"][0]["train_class_name"].replace("快慢","普慢")
             else:
-                inst.type = "新空调" + d["data"]["data"][0]["train_class_name"]
+                inst.type = "新空调" + d["data"]["data"][0]["train_class_name"].replace("快慢","普慢")
 
     r = post("https://mobile.12306.cn/wxxcx/wechat/bigScreen/queryTrainBureau", data={
         "queryDate": inst._beginDay,
@@ -238,6 +237,8 @@ def getTrainKind(inst):
         inst.type = "高速"
     elif inst.number.startswith("D") or inst.number.startswith("C"):
         inst.type = "动车"
+    elif inst.number.startswith("S"):
+        inst.type = "市域"
     else:
         r = get(
             f"https://mobile.12306.cn/weixin/wxcore/queryByTrainNo?train_no={inst.code}&depart_date={datetime.datetime.strptime(inst._beginDay,'%Y%m%d').strftime('%Y-%m-%d')}")
@@ -248,16 +249,13 @@ def getTrainKind(inst):
             raise LookupError
 
         if d["data"]["data"][0]["train_class_name"] in ["高速", "动车"]:
-            if d["data"]["data"][0]["station_train_code"].startswith("S"):
-                inst.type = "市域"
-            else:
-                inst.type = d["data"]["data"][0]["train_class_name"]
+            inst.type = d["data"]["data"][0]["train_class_name"]
         else:
             if d["data"]["data"][0]["service_type"] == "0":
                 # 非空
-                inst.type = d["data"]["data"][0]["train_class_name"]
+                inst.type = d["data"]["data"][0]["train_class_name"].replace("快慢","普慢")
             else:
-                inst.type = "新空调"+d["data"]["data"][0]["train_class_name"]
+                inst.type = "新空调"+d["data"]["data"][0]["train_class_name"].replace("快慢","普慢")
     LOGGER.debug(f"车次车种 {inst.number}: 完成")
     return inst
 
@@ -297,14 +295,15 @@ def getStopDistanceAndDiagram(inst):
         for si in range(len(inst.timetable)):
             stop = inst.timetable[si]
             t = restore_ky_telecode(stop["stationTelecode"])
-            day = (datetime.datetime.strptime(inst._beginDay,"%Y%m%d")+datetime.timedelta(days=stop["day"])).strftime("%Y%m%d")
+            day = (datetime.datetime.strptime(inst._beginDay, "%Y%m%d") +
+                   datetime.timedelta(days=stop["day"])).strftime("%Y%m%d")
             if (day+t) not in STATION_MAP_CACHE:
                 res = {}
                 r = post(
                     f"https://mobile.12306.cn/wxxcx/wechat/bigScreen/queryTrainByStation?train_start_date={day}&train_station_code={t}")
                 if "data" in r.json():
                     d = r.json()["data"]
-                    if len(d) == 0: # 偶发拿不到数据
+                    if len(d) == 0:  # 偶发拿不到数据
                         return getStopDistanceAndDiagram(inst)
                     for x in d:
                         # 处理交路
@@ -334,7 +333,10 @@ def getStopDistanceAndDiagram(inst):
                     stop["distance"]) / (inst.timetable[si]["runTime"] - inst.timetable[si-1]["runTime"])
 
             if inst.diagramType == "":
-                inst.diagramType = inf[inst.code][1]
+                if inst.number.startswith("S"):
+                    inst.diagramType = "市郊市域"
+                else:
+                    inst.diagramType = inf[inst.code][1]
 
             if inst.diagram == []:
                 if inst.code in STATION_DIAGRAM_CACHE:
