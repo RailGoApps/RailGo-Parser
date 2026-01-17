@@ -87,6 +87,7 @@ def init_stations():
         pbar = tqdm.tqdm(total=0, desc="遍历车站", unit="个",
                       position=0, file=sys.stdout)
         with tqdl.wrap_logging_for_tqdm(pbar, logger=LOGGER):
+            get95572TmismList()
             for x in stationTogether():
                 pbar.total += 1
                 station(x, pbar)

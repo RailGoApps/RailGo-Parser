@@ -48,7 +48,6 @@ def getTrainMap(inst):
 def getTrainMain(inst):
     '''列车时刻表，担当段和车型'''
     if len(inst.rundays) == 0:
-        # 三折叠，怎么折，都停运
         raise LookupError
 
     req = post(
@@ -141,7 +140,8 @@ def getTrainMain(inst):
                     else:
                         inst.car = CAR_STYLE_CODE_MAP[style]
             except:
-                pass
+                if inst.car in CAR_STYLE_NAME_MAP: # 普速
+                    inst.car = CAR_STYLE_NAME_MAP[style]
         except Exception as e:
             return getTrainMainDowngrade(inst)
 
@@ -186,9 +186,12 @@ def getTrainMainDowngrade(inst):
         else:
             if d["data"]["data"][0]["service_type"] == "0":
                 # 非空
-                inst.type = d["data"]["data"][0]["train_class_name"].replace("快慢","普慢")
+                inst.type = d["data"]["data"][0]["train_class_name"].replace(
+                    "快慢", "普慢")
             else:
-                inst.type = "新空调" + d["data"]["data"][0]["train_class_name"].replace("快慢","普慢")
+                inst.type = "新空调" + \
+                    d["data"]["data"][0]["train_class_name"].replace(
+                        "快慢", "普慢")
 
     r = post("https://mobile.12306.cn/wxxcx/wechat/bigScreen/queryTrainBureau", data={
         "queryDate": inst._beginDay,
@@ -253,9 +256,12 @@ def getTrainKind(inst):
         else:
             if d["data"]["data"][0]["service_type"] == "0":
                 # 非空
-                inst.type = d["data"]["data"][0]["train_class_name"].replace("快慢","普慢")
+                inst.type = d["data"]["data"][0]["train_class_name"].replace(
+                    "快慢", "普慢")
             else:
-                inst.type = "新空调"+d["data"]["data"][0]["train_class_name"].replace("快慢","普慢")
+                inst.type = "新空调" + \
+                    d["data"]["data"][0]["train_class_name"].replace(
+                        "快慢", "普慢")
     LOGGER.debug(f"车次车种 {inst.number}: 完成")
     return inst
 
@@ -319,7 +325,7 @@ def getStopDistanceAndDiagram(inst):
                                         "to": [s[3], s[4]]
                                     })
                             for i in dg:
-                                STATION_DIAGRAM_CACHE[i["number"]] = i
+                                STATION_DIAGRAM_CACHE[i["number"]] = dg
                         # 处理距离和详细车种缓存
                         res[x["train_no"]] = [
                             int(x["distance"]), x["train_type_name"]]
@@ -334,13 +340,18 @@ def getStopDistanceAndDiagram(inst):
 
             if inst.diagramType == "":
                 if inst.number.startswith("S"):
-                    inst.diagramType = "市郊市域"
+                    inst.diagramType = ""
                 else:
                     inst.diagramType = inf[inst.code][1]
 
             if inst.diagram == []:
-                if inst.code in STATION_DIAGRAM_CACHE:
-                    inst.diagram = STATION_DIAGRAM_CACHE.pop(inst.code)
+                if inst.numberFull[0] in STATION_DIAGRAM_CACHE:
+                    inst.diagram = STATION_DIAGRAM_CACHE.pop(
+                        inst.numberFull[0])
+                elif len(inst.numberFull) > 1:
+                    if inst.numberFull[1] in STATION_DIAGRAM_CACHE:
+                        inst.diagram = STATION_DIAGRAM_CACHE.pop(
+                            inst.numberFull[1])
             inst.timetable[si] = stop
     except Exception as e:
         LOGGER.exception(e)

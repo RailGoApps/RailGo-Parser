@@ -34,6 +34,9 @@ def getKYFWList():
         else:  # 外国
             i.province = r[9]
             i.city = r[7].replace(i.province, "")
+        
+        if i.telecode in STATION_95572_TMISM_CACHE:
+            i.tmism = STATION_95572_TMISM_CACHE[i.telecode]
         yield i
 
 
@@ -49,11 +52,12 @@ def getHYFWList():
         i.tmism = x["tmism"]
         i.bureau = BUREAU_SGCODE[x["ljjc"]]
         i.pinyin, i.pinyinTriple = stationPinyin(x["hzzm"], x["pym"])
-        if isinstance(x["hyzdmc"], str):
-            if x["hyzdmc"].endswith("站") or x["hyzdmc"].endswith("车务段"):
-                i.belong = re.sub(
-                    "中国铁路.+公司", "", x["hyzdmc"]).replace("车站", "站")
         yield i
+
+        if isinstance(x["hyzdmc"], str):
+            belong = re.sub(
+                "中国铁路.+公司", "", x["hyzdmc"]).replace("车站", "站")
+            updateStationBelongInfo(i.telecode, i.bureau, belong)
 
 
 def getDetailedFreightInfo(inst):
@@ -115,10 +119,56 @@ def getLevel(inst):
         return inst
 
 
+def get95572TmismList():
+    try:
+        req = post("https://www.kyxtpt.com/base/api/v1/travel-train-station/page",
+                   headers={
+                       "6zubypya": " WECHAT:a8eb392ac90149b294bdf5b1b1180277",
+                       "deviceType": "WECHAT"
+                   },
+                   json={
+                       "status": "ENABLE",
+                       "pageSize": 999999999,
+                       "currentPage": 1,
+                       "telegraphCode": ""
+                   })
+        for x in req.json()["data"]["tableData"]:
+            tmism = int(x["trainStationCode"])
+            telecode = x["telegraphCode"]
+            if tmism >= 90000: # 正确的 TMISM 不使用 9XXXX 号段
+                continue
+            STATION_95572_TMISM_CACHE[telecode] = tmism
+        
+        req = post("https://www.kyxtpt.com/base/api/v1/travel-train-station/page",
+                   headers={
+                       "6zubypya": " WECHAT:a8eb392ac90149b294bdf5b1b1180277",
+                       "deviceType": "WECHAT"
+                   },
+                   json={
+                       "status": "DISABLE",
+                       "pageSize": 999999999,
+                       "currentPage": 1,
+                       "telegraphCode": ""
+                   })
+        for x in req.json()["data"]["tableData"]:
+            tmism = int(x["trainStationCode"])
+            telecode = x["telegraphCode"]
+            if tmism >= 90000: # 正确的 TMISM 不使用 9XXXX 号段
+                continue
+            STATION_95572_TMISM_CACHE[telecode] = tmism
+    except Exception as e:
+        LOGGER.exception(e)
+        LOGGER.debug("车站 TMISM 略表获取失败")
+
+
 def updateStationBelongInfo(station, bureau, belong):
     '''从列车时刻表更新车站所属路局及车务段'''
-    if not (belong.endswith("段") or belong.endswith("站")) and belong != "":
+    if belong in STATION_CWD_SPECIAL_MAP:
+        belong = STATION_CWD_SPECIAL_MAP[belong]
+    elif not (belong.endswith("段") or belong.endswith("站")) and belong != "":
         belong += "站"
+    belong = belong.replace("铁路公司站", "铁路公司").replace("地铁公司站", "铁路公司").replace(
+        "公司站", "铁路公司").replace("地铁站", "铁路公司").replace("铁路站", "铁路公司")
     EXPORTER.updateStationInfo(station, {
         "belong": belong,
         "bureau": bureau
@@ -127,7 +177,7 @@ def updateStationBelongInfo(station, bureau, belong):
 
 def updatePassTrain(station, train):
     EXPORTER.updateStationInfo(station, {
-        "trainList": train.number
+        "trainList": train.code
     }, ats=True)
     if train.number.startswith("G"):
         EXPORTER.updateStationInfo(station, {
