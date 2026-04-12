@@ -60,6 +60,9 @@ class MongoJsonExporter(ExporterBase):
     def getStation(self, telecode):
         return self.station_collection.find_one({'telecode': telecode})
 
+    def getStationName(self, name):
+        return self.station_collection.find_one({'name': name})
+
     def trainInfoList(self):
         return list(self.train_collection.find())
 

@@ -7,7 +7,6 @@ from railgo.parser.parse.station import *
 from railgo.parser.utils.datafixer import *
 import datetime
 import time
-import json
 
 
 def getTrainList():
@@ -63,18 +62,22 @@ def getTrainMain(inst):
         return getTrainMainDowngrade(inst)
     else:
         try:
-            inst.numberKind = "" if inst.number[0].isdigit(
-            ) else inst.number[0]
+            reconnectionFlag = False
+            inst.numberKind = "" if inst.number[0].isdigit() else inst.number[0]
             # inst.code = crj["data"]["trainNo"]
             inst.runner = crj["data"]["trainDetail"]["stopTime"][0]["jiaolu_corporation_code"]
             inst.carOwner = crj["data"]["trainDetail"]["stopTime"][0]["jiaolu_dept_train"]
-            inst.car = crj["data"]["trainDetail"]["stopTime"][0]["jiaolu_train_style"].replace(
-                "重联", " 重联")
+            inst.car = crj["data"]["trainDetail"]["stopTime"][0]["jiaolu_train_style"]
+            if "重联" in inst.car:
+                reconnectionFlag = True
+                inst.car = inst.car.replace("重联", "")
             inst.bureau = crj["data"]["trainDetail"]["stopTime"][0]["corporation_code"][0]
             inst.bureauName = BUREAU_SHORT_CODE.get(inst.bureau, "未知")
             try:
-                inst.car = crj["data"]["trainDetail"]["trainsetTypeInfo"]["trainsetTypeName"].replace(
-                    "重联", " 重联")
+                inst.car = crj["data"]["trainDetail"]["trainsetTypeInfo"]["trainsetTypeName"]
+                if "重联" in inst.car:
+                    reconnectionFlag = True
+                    inst.car = inst.car.replace("重联", "")
             except:
                 pass
 
@@ -107,40 +110,25 @@ def getTrainMain(inst):
             try:
                 style = crj["data"]["trainDetail"]["stopTime"][0]["train_style"]
                 if style in CAR_STYLE_CODE_MAP:
+                    # 特判错误或复杂车型
                     if "CRH380D" in inst.car and style == "CRH380A_556":
-                        if "重联" in inst.car:
-                            inst.car = "CRH380D (统型) 重联"
-                        else:
-                            inst.car = "CRH380D (统型)"
+                        inst.car = "CRH380D (统型)"
                     elif "CRH380B" in inst.car and style == "CRH380A_556":
-                        if "重联" in inst.car:
-                            inst.car = "CRH380B 重联"
-                        else:
-                            inst.car = "CRH380B"
+                        inst.car = "CRH380B"
                     elif "CRH1E" in inst.car and style == "CRH2E_110":
-                        if "重联" in inst.car:
-                            inst.car = "CRH1E-NG 重联"
-                        else:
-                            inst.car = "CRH1E-NG"
-                    elif "CR200J" in inst.car and "-" in inst.car:
-                        if "重联" in inst.car:
-                            if style == "CR200J3-C-676" or style == "CR200J":
-                                inst.car = inst.car.replace(" 重联", "")
-                                inst.car += "(短编) 重联"
-                            elif style == "CR200J_1012" or style == "CR200J_16" or style == "CR200J3-C_1012":
-                                inst.car = inst.car.replace(" 重联", "")
-                                inst.car += "(长编) 重联"
-                        else:
-                            if style == "CR200J3-C-676" or style == "CR200J":
-                                inst.car += "(短编)"
-                            elif style == "CR200J_1012" or style == "CR200J_16" or style == "CR200J3-C_1012":
-                                inst.car += "(长编)"
-                    elif "重联" in inst.car:
-                        inst.car = CAR_STYLE_CODE_MAP[style]+" 重联"
+                        inst.car = "CRH1E-NG"
                     else:
-                        inst.car = CAR_STYLE_CODE_MAP[style]
+                        if style == "CR200J3-C-676" or style == "CR200J":
+                            inst.car += "(短编)"
+                        elif style == "CR200J_1012" or style == "CR200J_16" or style == "CR200J3-C_1012":
+                            inst.car += "(长编)"
+                        else:
+                            inst.car = CAR_STYLE_CODE_MAP[style]
+                
+                if reconnectionFlag:
+                    inst.car += " 重联"
             except:
-                if inst.car in CAR_STYLE_NAME_MAP: # 普速
+                if inst.car in CAR_STYLE_NAME_MAP:  # 普速
                     inst.car = CAR_STYLE_NAME_MAP[style]
         except Exception as e:
             return getTrainMainDowngrade(inst)
@@ -266,35 +254,6 @@ def getTrainKind(inst):
     return inst
 
 
-def getTrainDistanceCRGT(inst):
-    raise DeprecationWarning
-    '''国铁吉讯：获取列车运行里程'''
-    r = post("https://tripapi.ccrgt.com/crgt/trip-server-app/wx/train/getTrainInfoNode", json={
-        "params": {"trainNumber": inst.number, "date": datetime.datetime.strptime(inst._beginDay, "%Y%m%d").strftime("%Y-%m-%d")},
-        "isSign": 0,
-        "token": "",
-        "cguid": "",
-        "sign": ""
-    })
-    d = r.json()
-    ds = d["data"]["trainScheduleList"]
-    if d["code"] != 0:
-        return inst
-
-    for x in range(len(inst.timetable)):
-        i = inst.timetable[x]
-        if x == 0:
-            i["distance"] = ds[x]["miles"]
-            i["speed"] = 0
-        else:
-            i["distance"] = ds[x]["miles"]+inst.timetable[x-1]["distance"]
-            i["speed"] = ds[x]["miles"] / ((int(inst.timetable[x]["arrive"].split(":")[0])*60 + int(inst.timetable[x]["arrive"].split(
-                ":")[1]) - int(inst.timetable[x-1]["depart"].split(":")[0])*60 - int(inst.timetable[x-1]["depart"].split(":")[1])) % (24*60) / 60)
-        inst.timetable[x] = i
-
-    return inst
-
-
 def getStopDistanceAndDiagram(inst):
     '''获取里程及交路'''
     try:
@@ -335,8 +294,8 @@ def getStopDistanceAndDiagram(inst):
             inf = STATION_MAP_CACHE[day+t]
             stop["distance"] = inf[inst.code][0]
             if si != 0:
-                stop["speed"] = float(
-                    stop["distance"]) / (inst.timetable[si]["runTime"] - inst.timetable[si-1]["runTime"])
+                stop["speed"] = (float(stop["distance"])-float(inst.timetable[si-1]["distance"])) / (
+                    (inst.timetable[si]["runTime"] - inst.timetable[si-1]["runTime"]) / 60)
 
             if inst.diagramType == "":
                 if inst.number.startswith("S"):

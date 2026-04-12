@@ -3,6 +3,7 @@ from railgo.config import *
 from railgo.parser.parse import *
 from railgo.parser.parse.train import *
 from railgo.parser.parse.station import *
+from railgo.parser.parse.map import *
 from functools import wraps
 import time
 import tqdm
@@ -45,7 +46,7 @@ def train(inst, pbar):
 
 @task
 def station(inst, pbar):
-    LOGGER.info(f"{inst.name}站接收")
+    LOGGER.info(f"{inst.name} 站接收")
 
     for x in PIPE_STATION_PROCESSORS:
         LOGGER.debug(f"{inst.name} 执行抓取 {x}")
@@ -87,17 +88,25 @@ def init_stations():
         pbar = tqdm.tqdm(total=0, desc="遍历车站", unit="个",
                       position=0, file=sys.stdout)
         with tqdl.wrap_logging_for_tqdm(pbar, logger=LOGGER):
-            get95572TmismList()
+            #get95572TmismList()
             for x in stationTogether():
                 pbar.total += 1
                 station(x, pbar)
     except Exception as e:
         LOGGER.exception(e)
 
+def init_map():
+    # WIP
+    try:
+        LOGGER.info("开始遍历线路信息")
+        PIPE_POOL.submit(getMapLineDFS, getMapBeginLine(), PIPE_POOL.submit)
+    except Exception as e:
+        LOGGER.exception(e)
 
 def launchMainPipe():
     ts = time.time()
     init_stations()
+    #init_map()
     init_train()
     PIPE_POOL.shutdown(wait=True)
     LOGGER.info("=======爬取完成=======")

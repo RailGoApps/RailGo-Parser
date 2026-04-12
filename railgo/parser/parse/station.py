@@ -141,7 +141,7 @@ def get95572TmismList():
         
         req = post("https://www.kyxtpt.com/base/api/v1/travel-train-station/page",
                    headers={
-                       "6zubypya": " WECHAT:a8eb392ac90149b294bdf5b1b1180277",
+                       "6zubypya:WECHAT": "a8eb392ac90149b294bdf5b1b1180277",
                        "deviceType": "WECHAT"
                    },
                    json={
@@ -167,8 +167,8 @@ def updateStationBelongInfo(station, bureau, belong):
         belong = STATION_CWD_SPECIAL_MAP[belong]
     elif not (belong.endswith("段") or belong.endswith("站")) and belong != "":
         belong += "站"
-    belong = belong.replace("铁路公司站", "铁路公司").replace("地铁公司站", "铁路公司").replace(
-        "公司站", "铁路公司").replace("地铁站", "铁路公司").replace("铁路站", "铁路公司")
+        belong = belong.replace("铁路公司站", "铁路公司").replace("地铁公司站", "铁路公司").replace(
+            "公司站", "铁路公司").replace("地铁站", "铁路公司").replace("铁路站", "铁路公司")
     EXPORTER.updateStationInfo(station, {
         "belong": belong,
         "bureau": bureau
@@ -183,6 +183,12 @@ def updatePassTrain(station, train):
         EXPORTER.updateStationInfo(station, {
             "type": "高"
         }, ats=True)
+
+def queryTelecodeFromName(name):
+    try:
+        return EXPORTER.getStationName(name)["telecode"]
+    except:
+        return ""
 
 
 def stationTogether():

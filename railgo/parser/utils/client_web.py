@@ -1,6 +1,7 @@
 '''网络Base'''
 from railgo.config import LOGGER
 import requests
+import requests.utils
 import time
 import retry
 
@@ -26,6 +27,10 @@ def get(url, headers={}, data={}):
 
 @retry.retry(tries=5, delay=5)
 def post(url, headers={}, json={}, data={}):
+    def patch_header_check(header):
+        return
+
+    requests.utils.check_header_validity = patch_header_check
     tc = 0
     while tc < 5:
         try:
