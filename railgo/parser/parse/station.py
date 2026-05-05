@@ -177,7 +177,7 @@ def updateStationBelongInfo(station, bureau, belong):
 
 def updatePassTrain(station, train):
     EXPORTER.updateStationInfo(station, {
-        "trainList": train.code
+        "trainList": train.number
     }, ats=True)
     if train.number.startswith("G"):
         EXPORTER.updateStationInfo(station, {

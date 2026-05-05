@@ -11,16 +11,22 @@ import time
 
 def getTrainList():
     '''获取全部车次列表 生成器'''
-    for key in TRAIN_KIND_KEYWORDS:
-        req = get(
-            f"https://mobile.12306.cn/weixin/wxcore/queryTrain?ticket_no={key}&depart_date={datetime.datetime.now().strftime('%Y%m%d')}")
-        jr = req.json()
-        for car in jr["data"]:
-            inst = TrainModel()
-            inst.number = car["ticket_no"]
-            inst.code = car["train_code"]
-            yield inst
-            LOGGER.debug(f"车次列表提交 {car['ticket_no']}")
+    _cachedTrainIDs = []
+    for x in range(7):
+        for key in TRAIN_KIND_KEYWORDS:
+            req = get(
+                f"https://mobile.12306.cn/weixin/wxcore/queryTrain?ticket_no={key}&depart_date={(datetime.datetime.now() + datetime.timedelta(days=x)).strftime('%Y%m%d')}")
+            jr = req.json()
+            for car in jr["data"]:
+                if car["train_code"] in _cachedTrainIDs:
+                    continue
+                _cachedTrainIDs.append(car["train_code"])
+                inst = TrainModel()
+                inst.number = car["ticket_no"]
+                inst.code = car["train_code"]
+                yield inst
+                LOGGER.debug(f"车次列表提交 {car['ticket_no']}")
+            time.sleep(0.5)
         time.sleep(1)
 
 
