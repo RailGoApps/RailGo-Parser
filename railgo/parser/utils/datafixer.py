@@ -105,3 +105,17 @@ def stationPinyin(text, jianpin):
     except Exception as e:
         print(e, r, text, jianpin)
         return "".join(r).capitalize(), ""
+
+def fix_cr200j_series(serie):
+    """根据详细车号细化CR200J系列"""
+    if "-D" in serie:
+        return "CR200J1-D"
+    elif "-C-2" in serie or "-C-6" in serie:
+        return "CR200J1-C"
+    elif "-C-7" in serie or "-C-8" in serie:
+        return "CR200J2-C"
+    elif "-C-1" in serie or "-C-0" in serie or "-C-5" in serie:
+        return "CR200J3-C"
+    else:
+        return "CR200J"
+    

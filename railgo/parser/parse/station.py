@@ -187,6 +187,8 @@ def stationTogether():
                 i["type"].remove("通")
             EXPORTER.exportStationInfo(i)
         else:
+            # 先导出一次以免后续查重漏掉
+            EXPORTER.exportStationInfo(x)
             yield x
 # 对接接口
 
@@ -206,6 +208,14 @@ def updateStationBelongInfo(station, bureau, belong):
 
 
 def updatePassTrain(station, train):
+    s = EXPORTER.getStation(station)
+    if "客" not in s["type"]:
+        s["type"].append("客")
+        if "通" in s["type"]:
+            s["type"].remove("通")
+    EXPORTER.updateStationInfo(station,{
+        "type": s["type"]
+    })
     EXPORTER.updateStationInfo(station, {
         "trainList": train.number
     }, ats=True)

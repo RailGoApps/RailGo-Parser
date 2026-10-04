@@ -138,6 +138,7 @@ class MongoJsonExporter(ExporterBase):
             tele_aliases = set(main.get("telecodeAlias", []))
             tmism_aliases = set(main.get("tmismAlias", []))
             merged_type = main.get("type", [])[:]
+            merged_trainList = main.get("trainList", [])
 
             for d in others:
                 if d.get("telecode"):
@@ -148,6 +149,7 @@ class MongoJsonExporter(ExporterBase):
                 for t in d.get("type", []):
                     if t not in merged_type:
                         merged_type.append(t)
+                merged_trainList+=d.get("trainList", [])
 
             update = {}
             new_tele = list(tele_aliases)
@@ -158,6 +160,7 @@ class MongoJsonExporter(ExporterBase):
                 update["tmismAlias"] = new_tmism
             if set(merged_type) != set(main.get("type", [])):
                 update["type"] = merged_type
+            update["trainList"] = merged_trainList
 
             if update:
                 self.station_collection.update_one({"_id": main["_id"]}, {"$set": update})

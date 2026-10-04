@@ -24,7 +24,8 @@ def getTrainList():
                 inst = TrainModel()
                 inst.number = car["ticket_no"]
                 inst.code = car["train_code"]
-                inst._dataBeginDay = (datetime.datetime.now() + datetime.timedelta(days=x)).strftime('%Y%m%d')
+                inst._dataBeginDay = (datetime.datetime.now(
+                ) + datetime.timedelta(days=x)).strftime('%Y%m%d')
                 yield inst
             time.sleep(0.5)
         time.sleep(1)
@@ -48,10 +49,11 @@ def getTrainMap(inst):
     inst.route = res
     return inst
 
+
 def getCarBackup(inst):
     '''交路车型不全的情况下尝试补全'''
     try:
-        r = post("https://mobile.12306.cn/wxxcx/openplatform-inner/miniprogram/wifiapps/appFrontEnd/v2/lounge/open-smooth-common/qrCode/getDeptByTrainCode", data = {
+        r = post("https://mobile.12306.cn/wxxcx/openplatform-inner/miniprogram/wifiapps/appFrontEnd/v2/lounge/open-smooth-common/qrCode/getDeptByTrainCode", data={
             "trainCode": inst.number,
             "reqType": "form"
         })
@@ -63,6 +65,7 @@ def getCarBackup(inst):
     except Exception as e:
         LOGGER.exception(e)
     return inst
+
 
 def getTrainMain(inst):
     '''列车时刻表，担当段和车型'''
@@ -83,7 +86,8 @@ def getTrainMain(inst):
     else:
         try:
             reconnectionFlag = False
-            inst.numberKind = "" if inst.number[0].isdigit() else inst.number[0]
+            inst.numberKind = "" if inst.number[0].isdigit(
+            ) else inst.number[0]
             # inst.code = crj["data"]["trainNo"]
             inst.runner = crj["data"]["trainDetail"]["stopTime"][0]["jiaolu_corporation_code"]
             inst.carOwner = crj["data"]["trainDetail"]["stopTime"][0]["jiaolu_dept_train"]
@@ -93,6 +97,12 @@ def getTrainMain(inst):
                 inst.car = inst.car.replace("重联", "")
             elif inst.car == "" or inst.runner == "":
                 inst = getCarBackup(inst)
+
+            if inst.runner in BUREAU_KYD_MAP:
+                if BUREAU_SHORT_CODE[BUREAU_KYD_MAP[inst.runner]] != inst.bureau:
+                    # 进一步修正乱维护的数据
+                    inst.bureau = BUREAU_KYD_MAP[inst.runner]
+                    inst.bureauName = BUREAU_SHORT_CODE[BUREAU_KYD_MAP[inst.runner]]
 
             if crj["data"]["trainDetail"]["stopTime"][0]["corporation_code"][0] == "U":
                 # 广东城际的信息由广铁代维护 信息方维护的内容不准
@@ -111,7 +121,8 @@ def getTrainMain(inst):
             for x in crj["data"]["trainDetail"]["stopTime"]:
                 if " " in x["stationName"]:
                     # 合并车站
-                    kyLooplineStationMerge(fix_ky_telecode(x["stationTelecode"]), x["stationName"].replace(" ",""))
+                    kyLooplineStationMerge(fix_ky_telecode(
+                        x["stationTelecode"]), x["stationName"].replace(" ", ""))
 
                 inst.timetable.append({
                     "trainCode": x["stationTrainCode"],
@@ -119,7 +130,7 @@ def getTrainMain(inst):
                     "arrive": x["arriveTime"][:2]+":"+x["arriveTime"][2:],
                     "depart": x["startTime"][:2]+":"+x["startTime"][2:],
                     "stopTime": int(x["stopover_time"]),
-                    "station": x["stationName"].replace(" ",""),
+                    "station": x["stationName"].replace(" ", ""),
                     "stationTelecode": fix_ky_telecode(x["stationTelecode"]),
                     "runTime": int(x["runningTime"])
                 })
@@ -147,14 +158,54 @@ def getTrainMain(inst):
                         inst.car = "CRH380B"
                     elif "CRH1E" in inst.car and style == "CRH2E_110":
                         inst.car = "CRH1E-NG"
-                    else:
-                        if style == "CR200J3-C-676" or style == "CR200J":
-                            inst.car += "(短编)"
-                        elif style == "CR200J_1012" or style == "CR200J_16" or style == "CR200J3-C_1012":
-                            inst.car += "(长编)"
+                    elif "CRH2A" in inst.car and style == "CRH3A_613":
+                        inst.car = "CRH2A (统型)"
+                    elif "CR200J" in inst.car and "-C" in inst.car and style in CAR_STYLE_CODE_MAP:
+                        if inst.car == "" or inst.car == "CR200J-C":
+                            req = get("https://mobile.12306.cn/wxxcx/openplatform-inner/miniprogram/wifiapps/appFrontEnd/v2/lounge/open-smooth-common/trainStyleBatch/getCarDetail",
+                                      data={
+                                          "carCode": "",
+                                          "trainCode": inst.number,
+                                          "runningDay": inst._beginDay,
+                                          "reqType": "form"
+                                      })
+                            try:
+                                inst.car = CAR_STYLE_CODE_MAP[style].replace(
+                                    "CR200JC", fix_cr200j_series(req.json()["content"]["data"]["carCode"]))
+                            except:
+                                inst.car = ""
                         else:
-                            inst.car = CAR_STYLE_CODE_MAP[style]
-                
+                            inst.car = CAR_STYLE_CODE_MAP[style].replace(
+                                "CR200JC", inst.car)
+                    elif style == "CRH1_668":
+                        req = post("https://mobile.12306.cn/wxxcx/openplatform-inner/miniprogram/wifiapps/appFrontEnd/v2/lounge/open-smooth-common/qrCode/getDeptByTrainCode",
+                                   data={
+                                       "trainCode": inst.number,
+                                       "reqType": "form"
+                                   })
+                        try:
+                            if req.json()["content"]["data"]["carInfo"]["perHourSpeed"] == "200":
+                                inst.car = "CRH1A (200km/h,早期型)"
+                            else:
+                                inst.car = "CRH1A (250km/h,后期型)"
+                        except:
+                            inst.car = "CRH1A (200km/h,早期型)"
+                    elif style == "CRH1A-A_596":
+                        req = post("https://mobile.12306.cn/wxxcx/openplatform-inner/miniprogram/wifiapps/appFrontEnd/v2/lounge/open-smooth-common/qrCode/getDeptByTrainCode",
+                                   data={
+                                       "trainCode": inst.number,
+                                       "reqType": "form"
+                                   })
+                        try:
+                            if req.json()["content"]["data"]["carInfo"]["carCapacity"] == "596":
+                                inst.car = "CRH1A-A (多一等座前期型)"
+                            else:
+                                inst.car = "CRH1A-A (多一等座后期型)"
+                        except:
+                            inst.car = "CRH1A-A (多一等座后期型)"
+                    else:
+                        inst.car = CAR_STYLE_CODE_MAP[style]
+
                 if reconnectionFlag:
                     inst.car += " 重联"
             if inst.car in CAR_STYLE_NAME_MAP:  # 普速
@@ -238,13 +289,14 @@ def getTrainRundays(inst):
     inst.rundays = rundays
     inst._beginDay = list(filter(lambda date: datetime.datetime.strptime(date, '%Y%m%d') >=
                                  datetime.datetime.now(), inst.rundays))[0]
-    if (datetime.datetime.strptime(inst._beginDay,"%Y%m%d") - datetime.datetime.now()).days < 14:
+    if (datetime.datetime.strptime(inst._beginDay, "%Y%m%d") - datetime.datetime.now()).days < 14:
         inst.bureau = j["bureau_code"]
         inst.bureauName = BUREAU_SHORT_CODE.get(inst.bureau, "未知")
     else:
         raise LookupError(f"{inst.number} ({inst.code}) 开行日查询回报14日内无计划，自动舍弃")
-    
+
     return inst
+
 
 def getTrainKind(inst):
     '''获取车种（丐版时刻表）'''
@@ -286,7 +338,8 @@ def getStopDistanceAndDiagram(inst):
             day = (datetime.datetime.strptime(inst._beginDay, "%Y%m%d") +
                    datetime.timedelta(days=stop["day"])).strftime("%Y%m%d")
             if (day+t) not in STATION_MAP_CACHE:
-                LOGGER.debug(f"{inst.number} ({inst.code}) 缓存 {day} {t} 站查信息未命中")
+                LOGGER.debug(
+                    f"{inst.number} ({inst.code}) 缓存 {day} {t} 站查信息未命中")
                 res = {}
                 r = post(
                     f"https://mobile.12306.cn/wxxcx/wechat/bigScreen/queryTrainByStation?train_start_date={day}&train_station_code={t}")
@@ -309,7 +362,7 @@ def getStopDistanceAndDiagram(inst):
                                     })
                             for i in dg:
                                 STATION_DIAGRAM_CACHE[i["number"]] = dg
-                        
+
                         dtype = x["train_class_name"]
                         if dtype not in ["高速", "动车"]:
                             if x["service_type"] != "0":
@@ -346,6 +399,7 @@ def getStopDistanceAndDiagram(inst):
         LOGGER.exception(e)
     return inst
 
+
 def getTrainDistanceCRGT(inst):
     '''国铁吉讯：获取列车运行里程'''
     for x in inst.timetable[1:]:
@@ -372,12 +426,13 @@ def getTrainDistanceCRGT(inst):
             if x != 0:
                 distance_cache.append(ds[x]["miles"] + distance_cache[x-1])
             i = inst.timetable[x]
-            if i.get("distance", 0) == 0 and x!=0:
+            if i.get("distance", 0) == 0 and x != 0:
                 i["distance"] = distance_cache[x]
             inst.timetable[x] = i
     except:
         LOGGER.warning(f"{inst.number} ({inst.code}) 里程信息不完整")
     return inst
+
 
 def getSpeed(inst):
     '''里程信息得出后复算速度'''

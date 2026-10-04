@@ -3,7 +3,6 @@ from railgo.config import *
 from railgo.parser.parse import *
 from railgo.parser.parse.train import *
 from railgo.parser.parse.station import *
-from railgo.parser.parse.map import *
 from functools import wraps
 import time
 import copy
@@ -95,14 +94,6 @@ def init_stations():
             for x in stationTogether():
                 pbar.total += 1
                 station(x, pbar)
-    except Exception as e:
-        LOGGER.exception(e)
-
-def init_map():
-    # WIP
-    try:
-        LOGGER.info("开始遍历线路信息")
-        PIPE_POOL.submit(getMapLineDFS, getMapBeginLine(), PIPE_POOL.submit)
     except Exception as e:
         LOGGER.exception(e)
 
