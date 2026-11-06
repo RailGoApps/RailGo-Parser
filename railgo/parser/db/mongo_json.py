@@ -29,7 +29,7 @@ class MongoJsonExporter(ExporterBase):
             return
         d.pop("_id", None)
         self.train_collection.update_one(
-            {'number': d["number"]},
+            {'code': d["code"]},
             {'$set': d},
             upsert=True
         )

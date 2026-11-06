@@ -11,24 +11,46 @@ import time
 
 def getTrainList():
     '''获取全部车次列表 生成器'''
-    _cachedTrainIDs = []
-    for x in range(7):
+    if type(TRAIN_DISCOVERY_DAYS) is not int or TRAIN_DISCOVERY_DAYS <= 0:
+        raise ValueError("TRAIN_DISCOVERY_DAYS 必须是正整数")
+    trains = {}
+    observed_days = {}
+    versions = {}
+    today = datetime.datetime.now()
+    for x in range(TRAIN_DISCOVERY_DAYS):
+        day = (today + datetime.timedelta(days=x)).strftime('%Y%m%d')
         for key in TRAIN_KIND_KEYWORDS:
-            req = get(
-                f"https://mobile.12306.cn/weixin/wxcore/queryTrain?ticket_no={key}&depart_date={(datetime.datetime.now() + datetime.timedelta(days=x)).strftime('%Y%m%d')}")
-            jr = req.json()
+            try:
+                req = get(
+                    f"https://mobile.12306.cn/weixin/wxcore/queryTrain?ticket_no={key}&depart_date={day}")
+                jr = req.json()
+            except (ConnectionError, ValueError) as e:
+                # 完整窗口枚举时，单次新增查询失败不能丢弃已发现的车次。
+                LOGGER.warning(f"{day} {key} 车次列表查询失败：{e}")
+                continue
+            finally:
+                time.sleep(0.5)
+            if not isinstance(jr.get("data"), list):
+                LOGGER.warning(f"{day} {key} 车次列表无数据，跳过该查询")
+                continue
             for car in jr["data"]:
-                if car["train_code"] in _cachedTrainIDs:
-                    continue
-                _cachedTrainIDs.append(car["train_code"])
-                inst = TrainModel()
-                inst.number = car["ticket_no"]
-                inst.code = car["train_code"]
-                inst._dataBeginDay = (datetime.datetime.now(
-                ) + datetime.timedelta(days=x)).strftime('%Y%m%d')
-                yield inst
-            time.sleep(0.5)
+                code = car["train_code"]
+                if code not in trains:
+                    inst = TrainModel()
+                    inst.number = car["ticket_no"]
+                    inst.code = code
+                    inst._dataBeginDay = day
+                    trains[code] = inst
+                    observed_days[code] = set()
+                    versions.setdefault(inst.number, set()).add(code)
+                observed_days[code].add(day)
         time.sleep(1)
+
+    # 先完成枚举，避免同名新旧编号并行采集时混用按名称返回的开行计划。
+    for inst in trains.values():
+        if len(versions[inst.number]) > 1:
+            inst._validRunDays = observed_days[inst.code]
+        yield inst
 
 
 def getTrainMap(inst):
@@ -79,11 +101,16 @@ def getTrainMain(inst):
         })
     crj = req.json()
 
-    if crj["data"] == {}:
+    data = crj["data"]
+    if data == {}:
         return getTrainMainDowngrade(inst)
-    elif len(crj["data"]["trainDetail"]) == 0:
+    elif len(data["trainDetail"]) == 0:
         return getTrainMainDowngrade(inst)
     else:
+        returned_code = data.get("trainNo")
+        if returned_code != inst.code and (returned_code or hasattr(inst, "_validRunDays")):
+            # 同名查询可能返回旧版本，改用内部编号和始发日期查询。
+            return getTrainMainDowngrade(inst)
         try:
             reconnectionFlag = False
             inst.numberKind = "" if inst.number[0].isdigit(
@@ -226,7 +253,11 @@ def getTrainMainDowngrade(inst):
     r = get(
         f"https://mobile.12306.cn/weixin/wxcore/queryByTrainNo?train_no={inst.code}&depart_date={datetime.datetime.strptime(inst._beginDay,'%Y%m%d').strftime('%Y-%m-%d')}")
     d = r.json()
-    for x in d["data"]["data"]:
+    stops = d["data"]["data"]
+    # 降级可能发生在主查询已写入部分停站后，必须替换而非追加。
+    inst.timetable = []
+    inst.numberFull = sorted({stop["station_train_code"] for stop in stops})
+    for x in stops:
         inst.timetable.append({
             "trainCode": x["station_train_code"],
             "day": int(x["arrive_day_diff"]),
@@ -286,14 +317,24 @@ def getTrainRundays(inst):
         if x["flag"] == "1":
             rundays.append(x["date"])
 
+    now = datetime.datetime.now()
+    if hasattr(inst, "_validRunDays"):
+        # 同名多版本只使用列表接口已确认属于该内部编号的日期。
+        rundays = [day for day in rundays if day in inst._validRunDays]
+    elif inst._dataBeginDay > now.strftime('%Y%m%d'):
+        # 列表在前面的日期没有该编号，不能给未来新编号套用旧号计划。
+        rundays = [day for day in rundays if day >= inst._dataBeginDay]
     inst.rundays = rundays
-    inst._beginDay = list(filter(lambda date: datetime.datetime.strptime(date, '%Y%m%d') >=
-                                 datetime.datetime.now(), inst.rundays))[0]
-    if (datetime.datetime.strptime(inst._beginDay, "%Y%m%d") - datetime.datetime.now()).days < 14:
-        inst.bureau = j["bureau_code"]
-        inst.bureauName = BUREAU_SHORT_CODE.get(inst.bureau, "未知")
-    else:
+    future_days = list(filter(lambda date: date >= inst._dataBeginDay and
+                              datetime.datetime.strptime(date, '%Y%m%d') >= now,
+                              inst.rundays))
+    if not future_days:
+        raise LookupError(f"{inst.number} ({inst.code}) 无对应版本的未来开行日")
+    inst._beginDay = future_days[0]
+    if REQUIRE_RUN_WITHIN_14_DAYS and (datetime.datetime.strptime(inst._beginDay, "%Y%m%d") - now).days >= 14:
         raise LookupError(f"{inst.number} ({inst.code}) 开行日查询回报14日内无计划，自动舍弃")
+    inst.bureau = j["bureau_code"]
+    inst.bureauName = BUREAU_SHORT_CODE.get(inst.bureau, "未知")
 
     return inst
 
@@ -361,7 +402,7 @@ def getStopDistanceAndDiagram(inst):
                                         "to": [s[3], s[4]]
                                     })
                             for i in dg:
-                                STATION_DIAGRAM_CACHE[i["number"]] = dg
+                                STATION_DIAGRAM_CACHE[(inst._beginDay, i["number"])] = dg
 
                         dtype = x["train_class_name"]
                         if dtype not in ["高速", "动车"]:
@@ -389,8 +430,9 @@ def getStopDistanceAndDiagram(inst):
 
                 if inst.diagram == []:
                     for x in inst.numberFull:
-                        if x in STATION_DIAGRAM_CACHE:
-                            inst.diagram = STATION_DIAGRAM_CACHE.pop(x)
+                        key = (inst._beginDay, x)
+                        if key in STATION_DIAGRAM_CACHE:
+                            inst.diagram = STATION_DIAGRAM_CACHE.pop(key)
                             break
                 inst.timetable[si] = stop
                 if not inst.type:
