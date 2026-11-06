@@ -7,8 +7,13 @@ import logging.handlers
 # 枚举车次列表
 TRAIN_KIND_KEYWORDS = [
     "K", "T", "Z", "G", "D", "C", "Y", "L", "S",
+    "N", "V", "X",
     "1", "2", "3", "4", "5", "6", "7", "8"  # 无冠
 ]
+
+# 发现窗口包含当天；开行日限制独立于发现窗口，默认保留原判断。
+TRAIN_DISCOVERY_DAYS = 14
+REQUIRE_RUN_WITHIN_14_DAYS = True
 
 # 路局代码数据
 BUREAU_CODE = {
