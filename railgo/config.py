@@ -6,7 +6,7 @@ import logging.handlers
 
 # 枚举车次列表
 TRAIN_KIND_KEYWORDS = [
-    "K", "T", "Z", "G", "D", "C", "Y", "L", "S",
+    "K", "T", "Z", "G", "D", "C", "Y", "L", "S", "N", "V", "X",
     "1", "2", "3", "4", "5", "6", "7", "8"  # 无冠
 ]
 
